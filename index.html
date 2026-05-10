@@ -284,8 +284,8 @@ hr { border: none; border-top: 1px solid #2a2d3a; margin: 16px 0; }
         Model what happens to your financial trajectory if disability strikes. STD and LTD replace <strong>60% of your salary</strong>. SSDI is estimated from your earnings record. SSI is means-tested — your current net worth likely disqualifies you, but it's shown for completeness.
       </div>
 
-      <!-- Disability inputs grid -->
-      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap:12px; margin-bottom:16px;">
+      <!-- Top row: onset + duration -->
+      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap:12px; margin-bottom:14px;">
         <div class="input-group" style="margin:0;">
           <label>Disability Onset Age</label>
           <input type="number" id="disAge" value="45" min="36" max="64" oninput="renderDisability()">
@@ -294,64 +294,120 @@ hr { border: none; border-top: 1px solid #2a2d3a; margin: 16px 0; }
           <label>STD Duration (months)</label>
           <input type="number" id="stdMonths" value="6" min="1" max="12" oninput="renderDisability()">
         </div>
-        <div class="input-group" style="margin:0;">
-          <label>STD Monthly Benefit ($)</label>
-          <input type="number" id="stdBenefit" value="4738" placeholder="auto = 60% salary" oninput="renderDisability()">
-        </div>
-        <div class="input-group" style="margin:0;">
-          <label>LTD Monthly Benefit ($)</label>
-          <input type="number" id="ltdBenefit" value="4738" placeholder="auto = 60% salary" oninput="renderDisability()">
-        </div>
-        <div class="input-group" style="margin:0;">
-          <label>SSDI Monthly Benefit ($)</label>
-          <input type="number" id="ssdiBenefit" value="1450" oninput="renderDisability()">
-        </div>
-        <div class="input-group" style="margin:0;">
-          <label>SSI Monthly Benefit ($)</label>
-          <input type="number" id="ssiBenefit" value="967" oninput="renderDisability()">
-        </div>
       </div>
 
+      <!-- Benefit cards with inline amount + timing + offset -->
       <div class="dis-grid">
+
+        <!-- STD -->
         <div class="dis-card">
           <h4>Short-Term Disability (STD) <span class="badge badge-green">Active</span></h4>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px;">
+            <div class="input-group" style="margin:0;">
+              <label style="font-size:11px;">Monthly Benefit ($)</label>
+              <input type="number" id="stdBenefit" value="4738" oninput="renderDisability()" style="font-size:12px; padding:5px 8px;">
+            </div>
+            <div class="input-group" style="margin:0;">
+              <label style="font-size:11px;">Starts (mo after onset)</label>
+              <input type="number" id="stdStartMo" value="0" min="0" max="3" oninput="renderDisability()" style="font-size:12px; padding:5px 8px;">
+            </div>
+          </div>
           <p>Duration: <strong id="d-std-dur">6 months</strong></p>
           <p>Monthly benefit: <strong id="d-std-mo">—</strong></p>
           <p>Total paid out: <strong id="d-std-total">—</strong></p>
-          <p>Income gap (vs full salary): <strong id="d-std-gap">—</strong>/mo</p>
+          <p>Gap vs full salary: <strong id="d-std-gap">—</strong>/mo</p>
           <div class="impact-val bad" id="d-std-impact">—</div>
           <div class="impact-lbl">Total income lost during STD period</div>
         </div>
 
+        <!-- LTD -->
         <div class="dis-card">
           <h4>Long-Term Disability (LTD) <span class="badge badge-yellow">After STD</span></h4>
-          <p>Begins after STD exhausted</p>
-          <p>Monthly benefit: <strong id="d-ltd-mo">—</strong></p>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px;">
+            <div class="input-group" style="margin:0;">
+              <label style="font-size:11px;">Monthly Benefit ($)</label>
+              <input type="number" id="ltdBenefit" value="4738" oninput="renderDisability()" style="font-size:12px; padding:5px 8px;">
+            </div>
+            <div class="input-group" style="margin:0;">
+              <label style="font-size:11px;">Elim. period (mo after STD)</label>
+              <input type="number" id="ltdElimMo" value="0" min="0" max="6" oninput="renderDisability()" style="font-size:12px; padding:5px 8px;">
+            </div>
+          </div>
           <p>Covers to: <strong>Age 65 (or recovery)</strong></p>
-          <p>Income gap (vs full salary): <strong id="d-ltd-gap">—</strong>/mo</p>
+          <p>Monthly benefit: <strong id="d-ltd-mo">—</strong></p>
+          <p>Gap vs full salary: <strong id="d-ltd-gap">—</strong>/mo</p>
+          <div style="display:flex; align-items:center; gap:6px; margin:8px 0 4px;">
+            <input type="checkbox" id="ssdiOffsetsLtd" checked onchange="renderDisability()" style="accent-color:#6ee7b7; width:14px; height:14px;">
+            <label for="ssdiOffsetsLtd" style="font-size:11px; color:#9ca3af; cursor:pointer;">SSDI offsets LTD (insurer deducts SSDI from LTD)</label>
+          </div>
           <div class="impact-val bad" id="d-ltd-impact">—</div>
-          <div class="impact-lbl">Cumulative income lost vs full salary (to age 55)</div>
+          <div class="impact-lbl">Cumulative income lost vs full salary</div>
         </div>
 
+        <!-- SSDI -->
         <div class="dis-card">
           <h4>SSDI <span class="badge badge-green">Federal Program</span></h4>
-          <p>5-month waiting period before benefits</p>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px;">
+            <div class="input-group" style="margin:0;">
+              <label style="font-size:11px;">Monthly Benefit ($)</label>
+              <input type="number" id="ssdiBenefit" value="1450" oninput="renderDisability()" style="font-size:12px; padding:5px 8px;">
+            </div>
+            <div class="input-group" style="margin:0;">
+              <label style="font-size:11px;">Starts (mo after onset)</label>
+              <input type="number" id="ssdiStartMo" value="5" min="0" max="24" oninput="renderDisability()" style="font-size:12px; padding:5px 8px;">
+            </div>
+          </div>
+          <p>Medicare: <strong>24 months after award</strong></p>
           <p>Monthly benefit: <strong id="d-ssdi-mo">—</strong></p>
-          <p>Medicare eligibility: <strong>24 months after award</strong></p>
-          <p>Offsets LTD in many policies</p>
+          <p>Net LTD after offset: <strong id="d-ltd-net">—</strong>/mo</p>
           <div class="impact-val" style="color:#6ee7b7;" id="d-ssdi-annual">—</div>
-          <div class="impact-lbl">Annual SSDI income</div>
+          <div class="impact-lbl">Annual SSDI income once active</div>
         </div>
 
+        <!-- SSI -->
         <div class="dis-card">
           <h4>SSI <span class="badge badge-red">Asset-Limited</span></h4>
-          <p>Means-tested: <strong>asset limit $2,000 (single)</strong></p>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px;">
+            <div class="input-group" style="margin:0;">
+              <label style="font-size:11px;">Monthly Benefit ($)</label>
+              <input type="number" id="ssiBenefit" value="967" oninput="renderDisability()" style="font-size:12px; padding:5px 8px;">
+            </div>
+            <div class="input-group" style="margin:0;">
+              <label style="font-size:11px;">Starts (mo after onset)</label>
+              <input type="number" id="ssiStartMo" value="0" min="0" max="24" oninput="renderDisability()" style="font-size:12px; padding:5px 8px;">
+            </div>
+          </div>
+          <p>Asset limit: <strong>$2,000 (single)</strong></p>
           <p>Monthly benefit: <strong id="d-ssi-mo">—</strong></p>
-          <p>Your net worth likely <strong>disqualifies you</strong> unless spent down</p>
-          <p style="font-size:11px; color:#4b5563; margin-top:6px;">Edit the SSI field above to model your actual award if eligible</p>
+          <p style="font-size:10px; color:#4b5563;">Other income reduces SSI $1-for-$1 above $20/mo unearned</p>
           <div class="impact-val" style="color:#fbbf24;" id="d-ssi-annual">—</div>
-          <div class="impact-lbl">Annual SSI income (if eligible)</div>
+          <div class="impact-lbl">Annual SSI income once active</div>
         </div>
+      </div>
+
+      <!-- Part-time work -->
+      <div class="dis-card" style="margin-bottom:18px;">
+        <h4>Part-Time Work During Disability <span class="badge badge-green">Optional Income</span></h4>
+        <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap:10px; margin-bottom:10px;">
+          <div class="input-group" style="margin:0;">
+            <label style="font-size:11px;">Monthly Income ($)</label>
+            <input type="number" id="ptIncome" value="0" min="0" placeholder="0 = not working" oninput="renderDisability()" style="font-size:12px; padding:5px 8px;">
+          </div>
+          <div class="input-group" style="margin:0;">
+            <label style="font-size:11px;">Start Age</label>
+            <input type="number" id="ptStartAge" value="47" min="36" max="70" oninput="renderDisability()" style="font-size:12px; padding:5px 8px;">
+          </div>
+          <div class="input-group" style="margin:0;">
+            <label style="font-size:11px;">End Age</label>
+            <input type="number" id="ptEndAge" value="55" min="36" max="70" oninput="renderDisability()" style="font-size:12px; padding:5px 8px;">
+          </div>
+        </div>
+        <div style="display:flex; gap:20px; flex-wrap:wrap;">
+          <p style="font-size:11px; color:#9ca3af;">Annual part-time: <strong id="d-pt-annual" style="color:#6ee7b7;">$0</strong></p>
+          <p style="font-size:11px; color:#9ca3af;">Active for: <strong id="d-pt-years" style="color:#6ee7b7;">— yrs</strong></p>
+          <p style="font-size:11px; color:#9ca3af;">Total earned: <strong id="d-pt-total" style="color:#6ee7b7;">—</strong></p>
+        </div>
+        <p style="font-size:10px; color:#4b5563; margin-top:6px;">&#9888; SSDI SGA limit ~$1,620/mo (2026) — earning above stops SSDI. SSI earned income reduces benefit $1 per $2 above $85/mo.</p>
       </div>
 
       <div class="chart-box">
@@ -821,8 +877,9 @@ function renderMonteCarlo(p, sim) {
 // ─────────────────────────────────────────────────────────────
 // DISABILITY MONTE CARLO ENGINE
 // ─────────────────────────────────────────────────────────────
-function runDisabilityScenarioMC(scenario, disAge, stdMo, income, netWorth, expReturn, volatility, inflation, savingsRate, stdBenefit, ltdBenefit, ssdiMonthly, ssiMonthly) {
+function runDisabilityScenarioMC(scenario, disAge, stdMo, income, netWorth, expReturn, volatility, inflation, savingsRate, stdBenefit, ltdBenefit, ssdiMonthly, ssiMonthly, stdStartMo, ltdElimMo, ssdiStartMo, ssiStartMo, ssdiOffsetsLtd, ptIncome, ptStartAge, ptEndAge) {
   const RETIRE_AGE = 55;
+  const effectiveLtd = ssdiOffsetsLtd ? Math.max(0, ltdBenefit - ssdiMonthly) : ltdBenefit;
   const years = END_AGE - CURRENT_AGE;
   const trajectories = [];
   let ruinCount = 0;
@@ -848,57 +905,59 @@ function runDisabilityScenarioMC(scenario, disAge, stdMo, income, netWorth, expR
         }
 
       } else if (scenario === 'std') {
-        // STD at disAge for stdMo months → full recovery
+        // STD at disAge → full recovery
         if (age < disAge) {
           cashFlow = income * savingsRate;
         } else if (age === disAge) {
-          // Year of disability onset: partial STD benefit + partial normal
-          const stdIncome   = stdBenefit * stdMo;
-          const normalIncome = (income / 12) * (12 - stdMo);
-          const expenses    = income * 0.80; // full lifestyle costs
-          cashFlow = stdIncome + normalIncome - expenses + income * savingsRate * ((12 - stdMo) / 12);
+          const stdIncome    = stdBenefit * Math.min(12, stdMo);
+          const normalIncome = (income / 12) * Math.max(0, 12 - stdMo - stdStartMo);
+          cashFlow = stdIncome + normalIncome - income * 0.90;
         } else if (age <= RETIRE_AGE) {
-          cashFlow = income * savingsRate; // fully recovered
+          cashFlow = income * savingsRate;
         } else {
           const infl = Math.pow(1 + inflation, age - RETIRE_AGE);
           cashFlow = -income * 0.70 * infl + (age >= SS_AGE ? SS_ANNUAL : 0);
         }
 
       } else if (scenario === 'perm') {
-        // Permanent: LTD (60%) + SSDI after ~1yr wait
+        // Permanent: LTD (with SSDI offset if checked) + SSDI + optional part-time
         if (age < disAge) {
           cashFlow = income * savingsRate;
         } else if (age < 65) {
-          const ltdAnnual  = ltdBenefit * 12;
-          const ssdiAnnual = age >= disAge + 1 ? ssdiMonthly * 12 : 0;
-          const expenses   = income * 0.62; // tightened but still living
-          cashFlow = ltdAnnual + ssdiAnnual - expenses;
+          const monthsDisabled = (age - disAge) * 12;
+          const ltdStartMonth  = stdStartMo + stdMo + ltdElimMo;
+          const ltdAnnual  = monthsDisabled >= ltdStartMonth ? effectiveLtd * 12 : 0;
+          const ssdiAnnual = monthsDisabled >= ssdiStartMo   ? ssdiMonthly * 12   : 0;
+          const ptAnnual   = ptIncome > 0 && age >= ptStartAge && age <= ptEndAge ? ptIncome * 12 : 0;
+          cashFlow = ltdAnnual + ssdiAnnual + ptAnnual - income * 0.62;
         } else {
           const infl = Math.pow(1 + inflation, Math.max(0, age - RETIRE_AGE));
           cashFlow = -income * 0.50 * infl + (age >= SS_AGE ? SS_ANNUAL : 0);
         }
 
       } else if (scenario === 'ssdionly') {
-        // Hardest: SSDI only, no LTD
+        // SSDI only, no LTD, optional part-time
         if (age < disAge) {
           cashFlow = income * savingsRate;
         } else if (age < 65) {
-          const ssdiAnnual = age >= disAge + 1 ? ssdiMonthly * 12 : 0;
-          const expenses   = income * 0.62;
-          cashFlow = ssdiAnnual - expenses;
+          const monthsDisabled = (age - disAge) * 12;
+          const ssdiAnnual = monthsDisabled >= ssdiStartMo ? ssdiMonthly * 12 : 0;
+          const ptAnnual   = ptIncome > 0 && age >= ptStartAge && age <= ptEndAge ? ptIncome * 12 : 0;
+          cashFlow = ssdiAnnual + ptAnnual - income * 0.62;
         } else {
           const infl = Math.pow(1 + inflation, Math.max(0, age - RETIRE_AGE));
           cashFlow = -income * 0.50 * infl + (age >= SS_AGE ? SS_ANNUAL : 0);
         }
 
       } else if (scenario === 'ssi') {
-        // SSI only (means-tested, asset spend-down assumed)
+        // SSI only, optional part-time
         if (age < disAge) {
           cashFlow = income * savingsRate;
         } else if (age < 65) {
-          const ssiAnnual = ssiMonthly * 12;
-          const expenses  = income * 0.62;
-          cashFlow = ssiAnnual - expenses; // worst deficit — SSI is very low
+          const monthsDisabled = (age - disAge) * 12;
+          const ssiAnnual  = monthsDisabled >= ssiStartMo ? ssiMonthly * 12 : 0;
+          const ptAnnual   = ptIncome > 0 && age >= ptStartAge && age <= ptEndAge ? ptIncome * 12 : 0;
+          cashFlow = ssiAnnual + ptAnnual - income * 0.62;
         } else {
           const infl = Math.pow(1 + inflation, Math.max(0, age - RETIRE_AGE));
           cashFlow = -income * 0.50 * infl + (age >= SS_AGE ? SS_ANNUAL : 0);
@@ -923,7 +982,15 @@ function getDisabilityBenefits() {
   const ltdBenefit  = +document.getElementById('ltdBenefit').value  || Math.round(income * 0.60 / 12);
   const ssdiMonthly = +document.getElementById('ssdiBenefit').value || 1450;
   const ssiMonthly  = +document.getElementById('ssiBenefit').value  || 967;
-  return { stdBenefit, ltdBenefit, ssdiMonthly, ssiMonthly };
+  const stdStartMo  = +document.getElementById('stdStartMo').value  || 0;
+  const ltdElimMo   = +document.getElementById('ltdElimMo').value   || 0;
+  const ssdiStartMo = +document.getElementById('ssdiStartMo').value || 5;
+  const ssiStartMo  = +document.getElementById('ssiStartMo').value  || 0;
+  const ssdiOffsetsLtd = document.getElementById('ssdiOffsetsLtd').checked;
+  const ptIncome    = +document.getElementById('ptIncome').value    || 0;
+  const ptStartAge  = +document.getElementById('ptStartAge').value  || 0;
+  const ptEndAge    = +document.getElementById('ptEndAge').value    || 0;
+  return { stdBenefit, ltdBenefit, ssdiMonthly, ssiMonthly, stdStartMo, ltdElimMo, ssdiStartMo, ssiStartMo, ssdiOffsetsLtd, ptIncome, ptStartAge, ptEndAge };
 }
 
 function renderDisabilityMC() {
@@ -938,7 +1005,7 @@ function renderDisabilityMC() {
   const retireAge   = +document.getElementById('retireAge').value   || 55;
   const { stdBenefit, ltdBenefit, ssdiMonthly, ssiMonthly } = getDisabilityBenefits();
 
-  const args = [disAge, stdMo, income, netWorth, expReturn, volatility, inflation, savingsRate, stdBenefit, ltdBenefit, ssdiMonthly, ssiMonthly];
+  const args = [disAge, stdMo, income, netWorth, expReturn, volatility, inflation, savingsRate, stdBenefit, ltdBenefit, ssdiMonthly, ssiMonthly, stdStartMo, ltdElimMo, ssdiStartMo, ssiStartMo, ssdiOffsetsLtd, ptIncome, ptStartAge, ptEndAge];
   const keys  = ['baseline', 'std', 'perm', 'ssdionly', 'ssi'];
   const sims  = {};
   keys.forEach(k => { sims[k] = runDisabilityScenarioMC(k, ...args); });
@@ -1057,28 +1124,45 @@ function renderDisability() {
   const stdMo       = +document.getElementById('stdMonths').value   || 6;
   const retireAge   = +document.getElementById('retireAge').value   || 55;
 
-  // Read user-entered benefit amounts (fall back to 60% formula if blank)
-  const { stdBenefit, ltdBenefit, ssdiMonthly, ssiMonthly } = getDisabilityBenefits();
+  // Read all user-entered benefit amounts, timing, and offsets
+  const b = getDisabilityBenefits();
+  const { stdBenefit, ltdBenefit, ssdiMonthly, ssiMonthly,
+          stdStartMo, ltdElimMo, ssdiStartMo, ssiStartMo,
+          ssdiOffsetsLtd, ptIncome, ptStartAge, ptEndAge } = b;
 
-  // Update summary cards
   const incomeMonthly = income / 12;
+
+  // STD card
   document.getElementById('d-std-dur').textContent    = stdMo + ' months';
   document.getElementById('d-std-mo').textContent     = fmt(stdBenefit) + '/mo';
   document.getElementById('d-std-total').textContent  = fmt(stdBenefit * stdMo);
-  document.getElementById('d-std-gap').textContent    = fmt(incomeMonthly - stdBenefit);
+  document.getElementById('d-std-gap').textContent    = fmt(Math.max(0, incomeMonthly - stdBenefit));
+  const incomeGapStd = Math.max(0, incomeMonthly - stdBenefit) * stdMo;
+  document.getElementById('d-std-impact').textContent = '-' + fmt(incomeGapStd);
+
+  // LTD card
+  const ltdStartMo      = stdMo + stdStartMo + ltdElimMo; // months after onset LTD begins
+  const ltdMonthsToRetire = Math.max(0, (retireAge - disAge) * 12 - ltdStartMo);
+  const effectiveLtd    = ssdiOffsetsLtd ? Math.max(0, ltdBenefit - ssdiMonthly) : ltdBenefit;
   document.getElementById('d-ltd-mo').textContent     = fmt(ltdBenefit) + '/mo';
-  document.getElementById('d-ltd-gap').textContent    = fmt(incomeMonthly - ltdBenefit);
-  document.getElementById('d-ssdi-mo').textContent    = fmt(ssdiMonthly) + '/mo';
+  document.getElementById('d-ltd-gap').textContent    = fmt(Math.max(0, incomeMonthly - ltdBenefit));
+  const incomeGapLtd = Math.max(0, incomeMonthly - ltdBenefit) * ltdMonthsToRetire;
+  document.getElementById('d-ltd-impact').textContent = '-' + fmt(incomeGapLtd);
+
+  // SSDI card
+  document.getElementById('d-ssdi-mo').textContent     = fmt(ssdiMonthly) + '/mo';
   document.getElementById('d-ssdi-annual').textContent = fmt(ssdiMonthly * 12) + '/yr';
+  document.getElementById('d-ltd-net').textContent     = fmt(effectiveLtd);
+
+  // SSI card
   document.getElementById('d-ssi-mo').textContent     = fmt(ssiMonthly) + '/mo';
   document.getElementById('d-ssi-annual').textContent = fmt(ssiMonthly * 12) + '/yr';
 
-  const incomeGapStd = (incomeMonthly - stdBenefit) * stdMo;
-  document.getElementById('d-std-impact').textContent = '-' + fmt(incomeGapStd);
-
-  const ltdMonthsToRetire = Math.max(0, (retireAge - disAge) * 12 - stdMo);
-  const incomeGapLtd = (incomeMonthly - ltdBenefit) * ltdMonthsToRetire;
-  document.getElementById('d-ltd-impact').textContent = '-' + fmt(incomeGapLtd);
+  // Part-time work card
+  const ptYears = ptIncome > 0 ? Math.max(0, ptEndAge - ptStartAge) : 0;
+  document.getElementById('d-pt-annual').textContent = fmt(ptIncome * 12);
+  document.getElementById('d-pt-years').textContent  = ptYears > 0 ? ptYears + ' yrs' : '—';
+  document.getElementById('d-pt-total').textContent  = ptYears > 0 ? fmt(ptIncome * 12 * ptYears) : '—';
 
   // Build deterministic trajectory lines
   const years = END_AGE - CURRENT_AGE + 1;
@@ -1104,24 +1188,49 @@ function renderDisability() {
     return -income * 0.70 * infl + (age >= SS_AGE ? SS_ANNUAL : 0);
   });
 
+  // Helper: compute annual disability income at a given age
+  function disabilityAnnualIncome(age) {
+    const monthsDisabled = (age - disAge) * 12;
+    let annualIncome = 0;
+
+    // STD: active from stdStartMo to stdStartMo + stdMo
+    const stdActive = monthsDisabled >= stdStartMo && monthsDisabled < stdStartMo + stdMo;
+    if (stdActive) annualIncome += stdBenefit * 12;
+
+    // LTD: active after STD + elimination period, to age 65
+    const ltdStartMonth = stdStartMo + stdMo + ltdElimMo;
+    const ltdActive = monthsDisabled >= ltdStartMonth && age < 65;
+    if (ltdActive) {
+      annualIncome += effectiveLtd * 12;
+    }
+
+    // SSDI: active after ssdiStartMo, to age 65 (then converts to SS)
+    const ssdiActive = monthsDisabled >= ssdiStartMo && age < 65;
+    if (ssdiActive) annualIncome += ssdiMonthly * 12;
+
+    // Part-time work
+    if (ptIncome > 0 && age >= ptStartAge && age <= ptEndAge) {
+      annualIncome += ptIncome * 12;
+    }
+
+    return annualIncome;
+  }
+
   const stdScenario = buildTraj(age => {
     if (age === disAge) {
-      const stdIncome    = stdBenefit * stdMo;
-      const normalIncome = incomeMonthly * (12 - stdMo);
-      return stdIncome + normalIncome - income * 0.90; // expenses stay high
+      // Year of onset: mix of STD and normal income
+      const stdIncome    = stdBenefit * Math.min(12, stdMo);
+      const normalIncome = incomeMonthly * Math.max(0, 12 - stdMo - stdStartMo);
+      return stdIncome + normalIncome - income * 0.90;
     }
-    if (age <= RETIRE_AGE) return income * savingsRate;
+    if (age <= RETIRE_AGE) return income * savingsRate; // recovered
     const infl = Math.pow(1 + inflation, age - RETIRE_AGE);
     return -income * 0.70 * infl + (age >= SS_AGE ? SS_ANNUAL : 0);
   });
 
   const permScenario = buildTraj(age => {
     if (age < disAge) return income * savingsRate;
-    if (age <= 65) {
-      const ltdAnnual  = ltdBenefit * 12;
-      const ssdiAnnual = age >= disAge + 1 ? ssdiMonthly * 12 : 0;
-      return ltdAnnual + ssdiAnnual - income * 0.62;
-    }
+    if (age <= 65) return disabilityAnnualIncome(age) - income * 0.62;
     const infl = Math.pow(1 + inflation, Math.max(0, age - RETIRE_AGE));
     return -income * 0.55 * infl + (age >= SS_AGE ? SS_ANNUAL : 0);
   });
@@ -1129,8 +1238,9 @@ function renderDisability() {
   const ssdiOnly = buildTraj(age => {
     if (age < disAge) return income * savingsRate;
     if (age <= 65) {
-      const ssdiAnnual = age >= disAge + 1 ? ssdiMonthly * 12 : 0;
-      return ssdiAnnual - income * 0.62;
+      const ssdiAnnual = (age - disAge) * 12 >= ssdiStartMo ? ssdiMonthly * 12 : 0;
+      const ptAnnual   = ptIncome > 0 && age >= ptStartAge && age <= ptEndAge ? ptIncome * 12 : 0;
+      return ssdiAnnual + ptAnnual - income * 0.62;
     }
     const infl = Math.pow(1 + inflation, Math.max(0, age - RETIRE_AGE));
     return -income * 0.55 * infl + (age >= SS_AGE ? SS_ANNUAL : 0);
@@ -1138,7 +1248,11 @@ function renderDisability() {
 
   const ssiOnly = buildTraj(age => {
     if (age < disAge) return income * savingsRate;
-    if (age <= 65) return ssiMonthly * 12 - income * 0.62;
+    if (age <= 65) {
+      const ssiAnnual = (age - disAge) * 12 >= ssiStartMo ? ssiMonthly * 12 : 0;
+      const ptAnnual  = ptIncome > 0 && age >= ptStartAge && age <= ptEndAge ? ptIncome * 12 : 0;
+      return ssiAnnual + ptAnnual - income * 0.62;
+    }
     const infl = Math.pow(1 + inflation, Math.max(0, age - RETIRE_AGE));
     return -income * 0.55 * infl + (age >= SS_AGE ? SS_ANNUAL : 0);
   });
