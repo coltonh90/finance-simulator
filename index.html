@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Colton's Financial Independence Simulator</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f1117; color: #e0e0e0; min-height: 100vh; }
+
+.header { background: #1a1d27; padding: 18px 32px; border-bottom: 1px solid #2a2d3a; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+.header-left h1 { font-size: 18px; font-weight: 700; color: #fff; }
+.header-left p { font-size: 12px; color: #6b7280; margin-top: 3px; }
+.stat-chips { display: flex; gap: 10px; flex-wrap: wrap; }
+.chip { background: #252836; padding: 5px 14px; border-radius: 20px; font-size: 12px; color: #9ca3af; }
+.chip span { color: #6ee7b7; font-weight: 700; }
+.chip.warn span { color: #fbbf24; }
+
+.tabs { background: #1a1d27; padding: 0 32px; border-bottom: 1px solid #2a2d3a; display: flex; gap: 0; overflow-x: auto; }
+.tab { padding: 13px 18px; font-size: 13px; cursor: pointer; color: #6b7280; border-bottom: 2px solid transparent; transition: all 0.15s; white-space: nowrap; }
+.tab.active { color: #6ee7b7; border-bottom-color: #6ee7b7; }
+.tab:hover:not(.active) { color: #d0d0e0; }
+
+.layout { display: flex; min-height: calc(100vh - 115px); }
+.sidebar { width: 300px; background: #1a1d27; border-right: 1px solid #2a2d3a; padding: 20px; flex-shrink: 0; overflow-y: auto; }
+.content { flex: 1; padding: 22px; overflow-y: auto; min-width: 0; }
+
+.section-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; color: #4b5563; margin-bottom: 12px; margin-top: 4px; }
+
+.input-group { margin-bottom: 14px; }
+.input-group label { display: flex; justify-content: space-between; font-size: 12px; color: #9ca3af; margin-bottom: 5px; }
+.input-group label .val { color: #6ee7b7; font-weight: 600; }
+input[type="number"], input[type="text"], select {
+  width: 100%; background: #252836; border: 1px solid #2a2d3a; border-radius: 7px;
+  color: #e0e0e0; padding: 7px 10px; font-size: 13px; outline: none;
+  transition: border-color 0.15s;
+}
+input[type="number"]:focus, select:focus { border-color: #6ee7b7; }
+input[type="range"] { width: 100%; accent-color: #6ee7b7; cursor: pointer; }
+
+hr { border: none; border-top: 1px solid #2a2d3a; margin: 16px 0; }
+
+.btn { width: 100%; padding: 10px; border-radius: 8px; font-size: 14px; font-weight: 700; cursor: pointer; border: none; background: #6ee7b7; color: #0f1117; transition: background 0.15s; margin-top: 6px; }
+.btn:hover { background: #34d399; }
+
+/* Cards */
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; margin-bottom: 20px; }
+.card { background: #1a1d27; border: 1px solid #2a2d3a; border-radius: 12px; padding: 18px; }
+.card .val { font-size: 26px; font-weight: 800; color: #6ee7b7; line-height: 1.1; }
+.card .val.warn { color: #fbbf24; }
+.card .val.bad { color: #f87171; }
+.card .lbl { font-size: 11px; color: #6b7280; margin-top: 5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+.card .sub { font-size: 11px; color: #4b5563; margin-top: 6px; }
+
+/* Charts */
+.chart-box { background: #1a1d27; border: 1px solid #2a2d3a; border-radius: 12px; padding: 20px; margin-bottom: 18px; }
+.chart-box h3 { font-size: 13px; font-weight: 600; color: #c0c0d0; margin-bottom: 16px; }
+.chart-box .chart-sub { font-size: 11px; color: #4b5563; margin-top: -12px; margin-bottom: 14px; }
+
+/* Tab panels */
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* Disability grid */
+.dis-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 18px; }
+.dis-card { background: #1a1d27; border: 1px solid #2a2d3a; border-radius: 12px; padding: 16px; }
+.dis-card h4 { font-size: 13px; font-weight: 700; color: #e0e0e0; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+.dis-card p { font-size: 12px; color: #9ca3af; margin-bottom: 4px; }
+.dis-card p strong { color: #e0e0e0; }
+.dis-card .impact-val { font-size: 22px; font-weight: 800; margin-top: 10px; }
+.dis-card .impact-lbl { font-size: 10px; color: #4b5563; }
+.badge { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px; }
+.badge-green { background: rgba(110,231,183,0.15); color: #6ee7b7; }
+.badge-yellow { background: rgba(251,191,36,0.15); color: #fbbf24; }
+.badge-red { background: rgba(248,113,113,0.15); color: #f87171; }
+
+/* State table */
+.state-table { width: 100%; border-collapse: collapse; }
+.state-table th { text-align: left; padding: 9px 12px; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: #4b5563; border-bottom: 1px solid #2a2d3a; }
+.state-table td { padding: 10px 12px; font-size: 13px; border-bottom: 1px solid #1a1d27; }
+.state-table tr:hover td { background: #1e2130; }
+.best-cell { color: #6ee7b7 !important; font-weight: 700; }
+.worst-cell { color: #f87171 !important; }
+
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.info-box { background: #1e2130; border-radius: 8px; padding: 12px; font-size: 12px; color: #9ca3af; margin-bottom: 16px; line-height: 1.6; }
+.info-box strong { color: #e0e0e0; }
+
+@media (max-width: 700px) {
+  .layout { flex-direction: column; }
+  .sidebar { width: 100%; }
+  .dis-grid { grid-template-columns: 1fr; }
+  .two-col { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <h1>Colton's Financial Independence Simulator</h1>
+    <p>Born July 7, 1990 &bull; Age 35 &bull; 1,000-run Monte Carlo &bull; Personal dashboard</p>
+  </div>
+  <div class="stat-chips">
+    <div class="chip">Net Worth <span id="hdr-nw">$170,000</span></div>
+    <div class="chip">Income <span id="hdr-inc">$94,760</span></div>
+    <div class="chip">FI Progress <span id="hdr-prog">—</span></div>
+    <div class="chip warn">FI Date <span id="hdr-date">—</span></div>
+  </div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('overview')">Overview &amp; FIRE</div>
+  <div class="tab" onclick="switchTab('montecarlo')">Monte Carlo</div>
+  <div class="tab" onclick="switchTab('disability')">Disability Scenarios</div>
+  <div class="tab" onclick="switchTab('states')">State Comparison</div>
+</div>
+
+<div class="layout">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="section-label">Your Profile</div>
+
+    <div class="input-group">
+      <label>Annual Income ($)</label>
+      <input type="number" id="income" value="94760" oninput="onInput()">
+    </div>
+    <div class="input-group">
+      <label>Current Net Worth ($)</label>
+      <input type="number" id="networth" value="170000" oninput="onInput()">
+    </div>
+    <div class="input-group">
+      <label>Savings Rate <span class="val" id="sr-val">20%</span></label>
+      <input type="range" id="savingsRate" min="1" max="75" value="20" oninput="onInput()">
+    </div>
+    <div class="input-group">
+      <label>Target Retirement Age</label>
+      <input type="number" id="retireAge" value="55" min="40" max="75" oninput="onInput()">
+    </div>
+    <div class="input-group">
+      <label>Annual Retirement Spend ($)</label>
+      <input type="number" id="annualSpend" value="0" placeholder="0 = auto (70% income)" oninput="onInput()">
+    </div>
+
+    <hr>
+    <div class="section-label">Account Balances</div>
+    <div class="input-group">
+      <label>401k / IRA ($)</label>
+      <input type="number" id="bal401k" value="80000" oninput="onInput()">
+    </div>
+    <div class="input-group">
+      <label>Brokerage ($)</label>
+      <input type="number" id="balBrok" value="40000" oninput="onInput()">
+    </div>
+    <div class="input-group">
+      <label>Real Estate Equity ($)</label>
+      <input type="number" id="balRE" value="30000" oninput="onInput()">
+    </div>
+    <div class="input-group">
+      <label>Cash / HYSA ($)</label>
+      <input type="number" id="balCash" value="20000" oninput="onInput()">
+    </div>
+
+    <hr>
+    <div class="section-label">Market Assumptions</div>
+    <div class="input-group">
+      <label>Expected Return <span class="val" id="ret-val">7.0%</span></label>
+      <input type="range" id="expReturn" min="3" max="12" step="0.5" value="7" oninput="onInput()">
+    </div>
+    <div class="input-group">
+      <label>Volatility (Std Dev) <span class="val" id="vol-val">15%</span></label>
+      <input type="range" id="volatility" min="5" max="30" step="1" value="15" oninput="onInput()">
+    </div>
+    <div class="input-group">
+      <label>Inflation <span class="val" id="inf-val">3.0%</span></label>
+      <input type="range" id="inflation" min="1" max="7" step="0.5" value="3" oninput="onInput()">
+    </div>
+    <div class="input-group">
+      <label>Safe Withdrawal Rate <span class="val" id="swr-val">4.0%</span></label>
+      <input type="range" id="swr" min="2" max="6" step="0.25" value="4" oninput="onInput()">
+    </div>
+
+    <button class="btn" onclick="runAll()">Run Simulation</button>
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <div class="content">
+
+    <!-- ===== OVERVIEW TAB ===== -->
+    <div class="tab-panel active" id="panel-overview">
+      <div class="cards">
+        <div class="card">
+          <div class="val" id="ov-fi-num">—</div>
+          <div class="lbl">FI Number</div>
+          <div class="sub">4% SWR on target spend</div>
+        </div>
+        <div class="card">
+          <div class="val" id="ov-fi-year">—</div>
+          <div class="lbl">Projected FI Year</div>
+          <div class="sub" id="ov-fi-sub"></div>
+        </div>
+        <div class="card">
+          <div class="val" id="ov-success">—</div>
+          <div class="lbl">Success Rate</div>
+          <div class="sub">% of 1,000 sims lasting to age 90</div>
+        </div>
+        <div class="card">
+          <div class="val" id="ov-spend">—</div>
+          <div class="lbl">Suggested Spend</div>
+          <div class="sub">70% of current income, inflation-adjusted</div>
+        </div>
+        <div class="card">
+          <div class="val" id="ov-progress">—</div>
+          <div class="lbl">FI Progress</div>
+          <div class="sub">Net worth vs FI number</div>
+        </div>
+        <div class="card">
+          <div class="val" id="ov-annual-savings">—</div>
+          <div class="lbl">Annual Savings</div>
+          <div class="sub">At current savings rate</div>
+        </div>
+      </div>
+
+      <div class="chart-box">
+        <h3>Wealth Trajectory to Age 90 — Percentile Fan (1,000 Simulations)</h3>
+        <div class="chart-sub">Green band = 25th–75th percentile. Dashed lines = 10th and 90th.</div>
+        <canvas id="chart-overview" height="120"></canvas>
+      </div>
+
+      <div class="two-col">
+        <div class="chart-box">
+          <h3>Account Allocation Today</h3>
+          <canvas id="chart-alloc" height="180"></canvas>
+        </div>
+        <div class="chart-box">
+          <h3>Savings Rate Sensitivity</h3>
+          <div class="chart-sub">FI year at different savings rates</div>
+          <canvas id="chart-sensitivity" height="180"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== MONTE CARLO TAB ===== -->
+    <div class="tab-panel" id="panel-montecarlo">
+      <div class="cards">
+        <div class="card">
+          <div class="val" id="mc-p50">—</div>
+          <div class="lbl">Median at Retirement</div>
+          <div class="sub">50th percentile portfolio</div>
+        </div>
+        <div class="card">
+          <div class="val warn" id="mc-p10">—</div>
+          <div class="lbl">Bad Scenario (10th %ile)</div>
+          <div class="sub">Only 10% of outcomes are worse</div>
+        </div>
+        <div class="card">
+          <div class="val" id="mc-p90">—</div>
+          <div class="lbl">Great Scenario (90th %ile)</div>
+          <div class="sub">Only 10% of outcomes are better</div>
+        </div>
+        <div class="card">
+          <div class="val" id="mc-ruin">—</div>
+          <div class="lbl">Ruin Rate</div>
+          <div class="sub">Sims where portfolio hits $0</div>
+        </div>
+      </div>
+
+      <div class="chart-box">
+        <h3>Full Monte Carlo Fan — All 1,000 Simulation Paths</h3>
+        <canvas id="chart-mc" height="130"></canvas>
+      </div>
+
+      <div class="chart-box">
+        <h3>Distribution of Portfolio Value at Your Retirement Age</h3>
+        <div class="chart-sub">How spread out your outcomes are — wider = more uncertainty.</div>
+        <canvas id="chart-hist" height="110"></canvas>
+      </div>
+    </div>
+
+    <!-- ===== DISABILITY TAB ===== -->
+    <div class="tab-panel" id="panel-disability">
+      <div class="info-box">
+        Model what happens to your financial trajectory if disability strikes. STD and LTD replace <strong>60% of your salary</strong>. SSDI is estimated from your earnings record. SSI is means-tested — your current net worth likely disqualifies you, but it's shown for completeness.
+      </div>
+
+      <div class="two-col" style="margin-bottom:16px;">
+        <div class="input-group">
+          <label>Disability Onset Age</label>
+          <input type="number" id="disAge" value="45" min="36" max="64" oninput="renderDisability()">
+        </div>
+        <div class="input-group">
+          <label>STD Duration (months)</label>
+          <input type="number" id="stdMonths" value="6" min="1" max="12" oninput="renderDisability()">
+        </div>
+      </div>
+
+      <div class="dis-grid">
+        <div class="dis-card">
+          <h4>Short-Term Disability (STD) <span class="badge badge-green">Active</span></h4>
+          <p>Duration: <strong id="d-std-dur">6 months</strong></p>
+          <p>Benefit: <strong>60% of gross salary</strong></p>
+          <p>Monthly benefit: <strong id="d-std-mo">—</strong></p>
+          <p>Total paid out: <strong id="d-std-total">—</strong></p>
+          <div class="impact-val bad" id="d-std-impact">—</div>
+          <div class="impact-lbl">Income gap vs full salary during STD period</div>
+        </div>
+
+        <div class="dis-card">
+          <h4>Long-Term Disability (LTD) <span class="badge badge-yellow">After STD</span></h4>
+          <p>Begins after STD exhausted</p>
+          <p>Benefit: <strong>60% of gross salary</strong></p>
+          <p>Monthly benefit: <strong id="d-ltd-mo">—</strong></p>
+          <p>Covers to: <strong>Age 65 (or recovery)</strong></p>
+          <p>COLA: <strong>Usually capped at 3%</strong></p>
+          <div class="impact-val bad" id="d-ltd-impact">—</div>
+          <div class="impact-lbl">Cumulative income lost vs baseline (to age 55)</div>
+        </div>
+
+        <div class="dis-card">
+          <h4>SSDI <span class="badge badge-green">Federal Program</span></h4>
+          <p>5-month waiting period before benefits</p>
+          <p>Est. monthly benefit (your earnings): <strong id="d-ssdi-mo">~$1,450/mo</strong></p>
+          <p>Medicare eligibility: <strong>24 months after award</strong></p>
+          <p>Offsets LTD in many policies</p>
+          <div class="impact-val" style="color:#6ee7b7;" id="d-ssdi-annual">—</div>
+          <div class="impact-lbl">Annual SSDI benefit (inflation-adjusted over time)</div>
+        </div>
+
+        <div class="dis-card">
+          <h4>SSI <span class="badge badge-red">Asset-Limited</span></h4>
+          <p>Means-tested: <strong>asset limit $2,000 (single)</strong></p>
+          <p>2026 federal max: <strong>~$967/mo</strong></p>
+          <p>Nebraska state supplement: <strong>~$29–$200/mo</strong></p>
+          <p>Your net worth (~$170k) <strong>disqualifies you</strong> unless spent down</p>
+          <div class="impact-val warn">$0 eligible now</div>
+          <div class="impact-lbl">Would require spending down to &lt;$2,000 in assets</div>
+        </div>
+      </div>
+
+      <div class="chart-box">
+        <h3>Wealth Trajectory: Baseline vs Disability Scenarios</h3>
+        <canvas id="chart-disability" height="130"></canvas>
+      </div>
+    </div>
+
+    <!-- ===== STATE COMPARISON TAB ===== -->
+    <div class="tab-panel" id="panel-states">
+      <div class="info-box">
+        Comparing your <strong>$94,760</strong> income across Nebraska, Arizona, and Florida. Federal taxes are identical — only state-level differences matter here. COL adjustments show real purchasing power.
+      </div>
+
+      <div class="cards" style="grid-template-columns: repeat(3, 1fr);">
+        <div class="card">
+          <div class="val" id="st-ne-takehome">—</div>
+          <div class="lbl">Nebraska Take-Home</div>
+          <div class="sub">After state income tax</div>
+        </div>
+        <div class="card">
+          <div class="val" id="st-az-takehome">—</div>
+          <div class="lbl">Arizona Take-Home</div>
+          <div class="sub">After state income tax</div>
+        </div>
+        <div class="card">
+          <div class="val" id="st-fl-takehome">—</div>
+          <div class="lbl">Florida Take-Home</div>
+          <div class="sub">No state income tax</div>
+        </div>
+      </div>
+
+      <div class="two-col">
+        <div class="chart-box">
+          <h3>Annual State Tax Burden</h3>
+          <canvas id="chart-state-tax" height="200"></canvas>
+        </div>
+        <div class="chart-box">
+          <h3>Take-Home Pay Comparison</h3>
+          <canvas id="chart-state-pay" height="200"></canvas>
+        </div>
+      </div>
+
+      <div class="chart-box">
+        <h3>30-Year Net Worth: How State Choice Compounds Over Time</h3>
+        <div class="chart-sub">Same savings rate, same returns — only state income tax differs. The gap compounds significantly.</div>
+        <canvas id="chart-state-long" height="110"></canvas>
+      </div>
+
+      <div class="chart-box">
+        <h3>Full State Comparison — Your $94,760 Income</h3>
+        <table class="state-table">
+          <thead>
+            <tr>
+              <th>Metric</th>
+              <th>Nebraska 🌽</th>
+              <th>Arizona 🌵</th>
+              <th>Florida 🌴</th>
+            </tr>
+          </thead>
+          <tbody id="state-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div><!-- end content -->
+</div><!-- end layout -->
+
+<script>
+// ─────────────────────────────────────────────────────────────
+// CONSTANTS
+// ─────────────────────────────────────────────────────────────
+const CURRENT_AGE = 35;
+const BIRTH_YEAR = 1990;
+const END_AGE = 90;
+const N_SIMS = 1000;
+const SS_AGE = 67;
+const SS_ANNUAL = 18000; // ~$1,500/mo rough Social Security estimate at 67
+
+const charts = {};
+
+// ─────────────────────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────────────────────
+function randNormal(mean, std) {
+  let u, v;
+  do { u = Math.random(); } while (u === 0);
+  do { v = Math.random(); } while (v === 0);
+  return mean + std * Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+}
+
+function fmt(n) {
+  if (n === null || n === undefined || isNaN(n)) return '—';
+  const abs = Math.abs(n);
+  if (abs >= 1e6) return (n < 0 ? '-' : '') + '$' + (abs / 1e6).toFixed(2) + 'M';
+  return (n < 0 ? '-$' : '$') + Math.round(abs).toLocaleString();
+}
+
+function pct(n, dec = 1) { return (n * 100).toFixed(dec) + '%'; }
+
+function getP(arr, p) {
+  const sorted = [...arr].sort((a, b) => a - b);
+  return sorted[Math.min(Math.floor(p / 100 * sorted.length), sorted.length - 1)];
+}
+
+function destroyChart(key) {
+  if (charts[key]) { charts[key].destroy(); delete charts[key]; }
+}
+
+function makeChart(key, canvasId, type, data, options) {
+  destroyChart(key);
+  const ctx = document.getElementById(canvasId).getContext('2d');
+  charts[key] = new Chart(ctx, { type, data, options });
+}
+
+const GRID_COLOR = '#1e2130';
+const TICK_COLOR = '#4b5563';
+const LEGEND_COLOR = '#9ca3af';
+
+function baseOpts(yFmt = true) {
+  return {
+    responsive: true,
+    animation: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: { labels: { color: LEGEND_COLOR, font: { size: 11 }, boxWidth: 12 } },
+      tooltip: { callbacks: yFmt ? { label: ctx => `${ctx.dataset.label}: ${fmt(ctx.raw)}` } : {} }
+    },
+    scales: {
+      x: { ticks: { color: TICK_COLOR, font: { size: 11 } }, grid: { color: GRID_COLOR } },
+      y: { ticks: { color: TICK_COLOR, font: { size: 11 }, callback: yFmt ? v => fmt(v) : undefined }, grid: { color: GRID_COLOR } }
+    }
+  };
+}
+
+// ─────────────────────────────────────────────────────────────
+// PARAMS
+// ─────────────────────────────────────────────────────────────
+function getP_() {
+  const income = +document.getElementById('income').value || 94760;
+  const netWorth = +document.getElementById('networth').value || 170000;
+  const savingsRate = +document.getElementById('savingsRate').value / 100;
+  const retireAge = +document.getElementById('retireAge').value || 55;
+  const annualSpendRaw = +document.getElementById('annualSpend').value;
+  const expReturn = +document.getElementById('expReturn').value / 100;
+  const volatility = +document.getElementById('volatility').value / 100;
+  const inflation = +document.getElementById('inflation').value / 100;
+  const swr = +document.getElementById('swr').value / 100;
+
+  const annualSpend = annualSpendRaw > 0 ? annualSpendRaw : income * 0.70;
+  const fiNumber = annualSpend / swr;
+  const annualSavings = income * savingsRate;
+
+  return { income, netWorth, savingsRate, retireAge, annualSpend, expReturn, volatility, inflation, swr, fiNumber, annualSavings };
+}
+
+// ─────────────────────────────────────────────────────────────
+// MONTE CARLO ENGINE
+// ─────────────────────────────────────────────────────────────
+function runSims(p) {
+  const { netWorth, annualSavings, retireAge, expReturn, volatility, inflation, annualSpend } = p;
+  const years = END_AGE - CURRENT_AGE;
+  const trajectories = [];
+  let ruinCount = 0;
+
+  for (let s = 0; s < N_SIMS; s++) {
+    let port = netWorth;
+    const traj = [port];
+    let ruined = false;
+
+    for (let yr = 1; yr <= years; yr++) {
+      const age = CURRENT_AGE + yr;
+      const r = randNormal(expReturn, volatility);
+      port *= (1 + r);
+
+      if (age <= retireAge) {
+        port += annualSavings;
+      } else {
+        const inflFactor = Math.pow(1 + inflation, age - retireAge);
+        port -= annualSpend * inflFactor;
+        if (age >= SS_AGE) port += SS_ANNUAL;
+      }
+
+      if (port < 0) { port = 0; ruined = true; }
+      traj.push(port);
+    }
+
+    trajectories.push(traj);
+    if (ruined) ruinCount++;
+  }
+
+  return { trajectories, ruinCount };
+}
+
+function getPctBands(trajectories, pcts) {
+  const years = trajectories[0].length;
+  const bands = {};
+  pcts.forEach(p => (bands[p] = []));
+
+  for (let yr = 0; yr < years; yr++) {
+    const vals = trajectories.map(t => t[yr]).sort((a, b) => a - b);
+    pcts.forEach(p => {
+      const idx = Math.min(Math.floor(p / 100 * vals.length), vals.length - 1);
+      bands[p].push(vals[idx]);
+    });
+  }
+  return bands;
+}
+
+// ─────────────────────────────────────────────────────────────
+// DETERMINISTIC FI ESTIMATE
+// ─────────────────────────────────────────────────────────────
+function estimateFiAge(p) {
+  let port = p.netWorth;
+  for (let age = CURRENT_AGE; age <= END_AGE; age++) {
+    if (port >= p.fiNumber) return age;
+    port = port * (1 + p.expReturn) + p.annualSavings;
+  }
+  return null;
+}
+
+// ─────────────────────────────────────────────────────────────
+// UI SYNC
+// ─────────────────────────────────────────────────────────────
+let simData = null;
+
+function onInput() {
+  const p = getP_();
+  document.getElementById('sr-val').textContent = Math.round(p.savingsRate * 100) + '%';
+  document.getElementById('ret-val').textContent = (p.expReturn * 100).toFixed(1) + '%';
+  document.getElementById('vol-val').textContent = Math.round(p.volatility * 100) + '%';
+  document.getElementById('inf-val').textContent = (p.inflation * 100).toFixed(1) + '%';
+  document.getElementById('swr-val').textContent = (p.swr * 100).toFixed(2) + '%';
+  document.getElementById('hdr-nw').textContent = fmt(p.netWorth);
+  document.getElementById('hdr-inc').textContent = fmt(p.income);
+}
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(t => t.classList.remove('active'));
+  const idx = ['overview', 'montecarlo', 'disability', 'states'].indexOf(name);
+  document.querySelectorAll('.tab')[idx].classList.add('active');
+  document.getElementById('panel-' + name).classList.add('active');
+}
+
+// ─────────────────────────────────────────────────────────────
+// RUN ALL
+// ─────────────────────────────────────────────────────────────
+function runAll() {
+  const p = getP_();
+  simData = runSims(p);
+  renderOverview(p, simData);
+  renderMonteCarlo(p, simData);
+  renderDisability();
+  renderStates(p);
+
+  const fiAge = estimateFiAge(p);
+  document.getElementById('hdr-prog').textContent = pct(p.netWorth / p.fiNumber, 0);
+  document.getElementById('hdr-date').textContent = fiAge ? (BIRTH_YEAR + fiAge).toString() : '2060+';
+}
+
+// ─────────────────────────────────────────────────────────────
+// OVERVIEW TAB
+// ─────────────────────────────────────────────────────────────
+function renderOverview(p, sim) {
+  const { netWorth, fiNumber, retireAge, expReturn, annualSpend, annualSavings, swr } = p;
+  const successRate = (N_SIMS - sim.ruinCount) / N_SIMS;
+  const fiAge = estimateFiAge(p);
+
+  document.getElementById('ov-fi-num').textContent = fmt(fiNumber);
+  document.getElementById('ov-fi-year').textContent = fiAge ? (BIRTH_YEAR + fiAge).toString() : '2060+';
+  document.getElementById('ov-fi-sub').textContent = fiAge ? `${fiAge - CURRENT_AGE} years from now` : 'Increase savings rate';
+  document.getElementById('ov-spend').textContent = fmt(annualSpend);
+  document.getElementById('ov-annual-savings').textContent = fmt(annualSavings);
+
+  const srEl = document.getElementById('ov-success');
+  srEl.textContent = pct(successRate);
+  srEl.className = 'val' + (successRate >= 0.85 ? '' : successRate >= 0.70 ? ' warn' : ' bad');
+
+  const progEl = document.getElementById('ov-progress');
+  const prog = netWorth / fiNumber;
+  progEl.textContent = pct(prog, 1);
+  progEl.className = 'val' + (prog >= 0.5 ? '' : prog >= 0.25 ? ' warn' : ' bad');
+
+  // Fan chart
+  const bands = getPctBands(sim.trajectories, [10, 25, 50, 75, 90]);
+  const labels = Array.from({ length: END_AGE - CURRENT_AGE + 1 }, (_, i) => CURRENT_AGE + i);
+
+  makeChart('overview', 'chart-overview', 'line', {
+    labels,
+    datasets: [
+      { label: '90th %ile', data: bands[90], borderColor: 'rgba(110,231,183,0.3)', borderWidth: 1.5, borderDash: [6, 4], fill: false, pointRadius: 0 },
+      { label: '75th–25th band', data: bands[75], borderColor: 'rgba(110,231,183,0.7)', borderWidth: 1.5, fill: '+1', backgroundColor: 'rgba(110,231,183,0.12)', pointRadius: 0 },
+      { label: 'Median (50th)', data: bands[50], borderColor: '#6ee7b7', borderWidth: 2.5, fill: false, pointRadius: 0 },
+      { label: '25th %ile', data: bands[25], borderColor: 'rgba(110,231,183,0.7)', borderWidth: 1.5, fill: false, pointRadius: 0 },
+      { label: '10th %ile', data: bands[10], borderColor: 'rgba(248,113,113,0.5)', borderWidth: 1.5, borderDash: [6, 4], fill: false, pointRadius: 0 },
+    ]
+  }, baseOpts());
+
+  // Allocation donut
+  makeChart('alloc', 'chart-alloc', 'doughnut', {
+    labels: ['401k / IRA', 'Brokerage', 'Real Estate', 'Cash / HYSA'],
+    datasets: [{
+      data: [
+        +document.getElementById('bal401k').value || 0,
+        +document.getElementById('balBrok').value || 0,
+        +document.getElementById('balRE').value || 0,
+        +document.getElementById('balCash').value || 0,
+      ],
+      backgroundColor: ['#6ee7b7', '#60a5fa', '#f59e0b', '#a78bfa'],
+      borderWidth: 0,
+    }]
+  }, {
+    plugins: { legend: { labels: { color: LEGEND_COLOR, font: { size: 11 } } } }
+  });
+
+  // Sensitivity chart: FI year at different savings rates
+  const srRates = [10, 15, 20, 25, 30, 40, 50];
+  const fiYears = srRates.map(sr => {
+    const pp = { ...p, savingsRate: sr / 100, annualSavings: p.income * sr / 100 };
+    const fa = estimateFiAge(pp);
+    return fa ? BIRTH_YEAR + fa : 2075;
+  });
+
+  makeChart('sensitivity', 'chart-sensitivity', 'bar', {
+    labels: srRates.map(r => r + '%'),
+    datasets: [{
+      label: 'Projected FI Year',
+      data: fiYears,
+      backgroundColor: fiYears.map(y => y <= 2040 ? '#6ee7b7' : y <= 2055 ? '#fbbf24' : '#f87171'),
+      borderWidth: 0, borderRadius: 5,
+    }]
+  }, {
+    ...baseOpts(false),
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { ticks: { color: TICK_COLOR }, grid: { display: false }, title: { display: true, text: 'Savings Rate', color: TICK_COLOR, font: { size: 11 } } },
+      y: { ticks: { color: TICK_COLOR, callback: v => v }, grid: { color: GRID_COLOR }, min: 2025, max: 2075 }
+    }
+  });
+}
+
+// ─────────────────────────────────────────────────────────────
+// MONTE CARLO TAB
+// ─────────────────────────────────────────────────────────────
+function renderMonteCarlo(p, sim) {
+  const retireIdx = p.retireAge - CURRENT_AGE;
+  const atRetire = sim.trajectories.map(t => t[retireIdx]).sort((a, b) => a - b);
+
+  document.getElementById('mc-p50').textContent = fmt(getP(atRetire, 50));
+  document.getElementById('mc-p10').textContent = fmt(getP(atRetire, 10));
+  document.getElementById('mc-p90').textContent = fmt(getP(atRetire, 90));
+  const ruinRate = sim.ruinCount / N_SIMS;
+  const ruinEl = document.getElementById('mc-ruin');
+  ruinEl.textContent = pct(ruinRate);
+  ruinEl.className = 'val' + (ruinRate < 0.10 ? '' : ruinRate < 0.20 ? ' warn' : ' bad');
+
+  // Fan chart with 7 bands
+  const bands = getPctBands(sim.trajectories, [5, 10, 25, 50, 75, 90, 95]);
+  const labels = Array.from({ length: END_AGE - CURRENT_AGE + 1 }, (_, i) => CURRENT_AGE + i);
+
+  makeChart('mc', 'chart-mc', 'line', {
+    labels,
+    datasets: [
+      { label: '95th', data: bands[95], borderColor: 'rgba(110,231,183,0.15)', borderWidth: 1, fill: '+1', backgroundColor: 'rgba(110,231,183,0.04)', pointRadius: 0 },
+      { label: '90th', data: bands[90], borderColor: 'rgba(110,231,183,0.3)', borderWidth: 1, fill: '+1', backgroundColor: 'rgba(110,231,183,0.07)', pointRadius: 0 },
+      { label: '75th', data: bands[75], borderColor: 'rgba(110,231,183,0.55)', borderWidth: 1.5, fill: '+1', backgroundColor: 'rgba(110,231,183,0.1)', pointRadius: 0 },
+      { label: 'Median', data: bands[50], borderColor: '#6ee7b7', borderWidth: 2.5, fill: '+1', backgroundColor: 'rgba(110,231,183,0.1)', pointRadius: 0 },
+      { label: '25th', data: bands[25], borderColor: 'rgba(251,191,36,0.55)', borderWidth: 1.5, fill: '+1', backgroundColor: 'rgba(251,191,36,0.07)', pointRadius: 0 },
+      { label: '10th', data: bands[10], borderColor: 'rgba(248,113,113,0.5)', borderWidth: 1, fill: '+1', backgroundColor: 'rgba(248,113,113,0.06)', pointRadius: 0 },
+      { label: '5th', data: bands[5], borderColor: 'rgba(248,113,113,0.2)', borderWidth: 1, fill: false, pointRadius: 0 },
+    ]
+  }, baseOpts());
+
+  // Histogram at retirement
+  const min = atRetire[0], max = atRetire[atRetire.length - 1];
+  const bins = 24;
+  const binSize = (max - min) / bins;
+  const counts = Array(bins).fill(0);
+  atRetire.forEach(v => {
+    const b = Math.min(Math.floor((v - min) / binSize), bins - 1);
+    counts[b]++;
+  });
+
+  makeChart('hist', 'chart-hist', 'bar', {
+    labels: counts.map((_, i) => fmt(min + i * binSize + binSize / 2)),
+    datasets: [{
+      label: '# of Simulations',
+      data: counts,
+      backgroundColor: 'rgba(110,231,183,0.5)',
+      borderColor: '#6ee7b7',
+      borderWidth: 1,
+      borderRadius: 3,
+    }]
+  }, {
+    ...baseOpts(false),
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { ticks: { color: TICK_COLOR, maxRotation: 45, font: { size: 10 }, callback: (_, i) => i % 3 === 0 ? fmt(min + i * binSize) : '' }, grid: { display: false } },
+      y: { ticks: { color: TICK_COLOR }, grid: { color: GRID_COLOR }, title: { display: true, text: '# Simulations', color: TICK_COLOR, font: { size: 11 } } }
+    }
+  });
+}
+
+// ─────────────────────────────────────────────────────────────
+// DISABILITY TAB
+// ─────────────────────────────────────────────────────────────
+function renderDisability() {
+  const income = +document.getElementById('income').value || 94760;
+  const netWorth = +document.getElementById('networth').value || 170000;
+  const expReturn = +document.getElementById('expReturn').value / 100;
+  const savingsRate = +document.getElementById('savingsRate').value / 100;
+  const inflation = +document.getElementById('inflation').value / 100;
+  const disAge = +document.getElementById('disAge').value || 45;
+  const stdMo = +document.getElementById('stdMonths').value || 6;
+
+  const stdBenefit = income * 0.60 / 12;
+  const ltdBenefit = income * 0.60 / 12;
+  const ssdiMonthly = 1450;
+
+  document.getElementById('d-std-dur').textContent = stdMo + ' months';
+  document.getElementById('d-std-mo').textContent = fmt(stdBenefit) + '/mo';
+  document.getElementById('d-std-total').textContent = fmt(stdBenefit * stdMo);
+  document.getElementById('d-ltd-mo').textContent = fmt(ltdBenefit) + '/mo';
+  document.getElementById('d-ssdi-annual').textContent = fmt(ssdiMonthly * 12) + '/yr';
+
+  const incomeGapStd = (income / 12 - stdBenefit) * stdMo;
+  document.getElementById('d-std-impact').textContent = '-' + fmt(incomeGapStd);
+
+  const ltdMonthsToRetire = Math.max(0, (55 - disAge) * 12 - stdMo);
+  const incomeGapLtd = (income / 12 - ltdBenefit) * ltdMonthsToRetire;
+  document.getElementById('d-ltd-impact').textContent = '-' + fmt(incomeGapLtd);
+
+  // Build trajectory lines
+  const years = END_AGE - CURRENT_AGE + 1;
+  const ageLabels = Array.from({ length: years }, (_, i) => CURRENT_AGE + i);
+  const RETIRE_AGE = 55;
+
+  function buildTraj(scenarioFn) {
+    let port = netWorth;
+    const traj = [port];
+    for (let yr = 1; yr < years; yr++) {
+      const age = CURRENT_AGE + yr;
+      port *= (1 + expReturn);
+      port += scenarioFn(age, port);
+      if (port < 0) port = 0;
+      traj.push(port);
+    }
+    return traj;
+  }
+
+  const baseline = buildTraj(age => {
+    if (age <= RETIRE_AGE) return income * savingsRate;
+    const infl = Math.pow(1 + inflation, age - RETIRE_AGE);
+    return -income * 0.70 * infl + (age >= SS_AGE ? SS_ANNUAL : 0);
+  });
+
+  // STD scenario: one year of reduced savings at disability onset, then full recovery
+  const stdScenario = buildTraj(age => {
+    if (age === disAge) return stdBenefit * stdMo - (income / 12) * (12 - stdMo) * 0.40; // reduced savings during STD
+    if (age <= RETIRE_AGE) return income * savingsRate;
+    const infl = Math.pow(1 + inflation, age - RETIRE_AGE);
+    return -income * 0.70 * infl + (age >= SS_AGE ? SS_ANNUAL : 0);
+  });
+
+  // Permanent LTD + SSDI scenario
+  const permScenario = buildTraj(age => {
+    if (age < disAge) return income * savingsRate;
+    if (age <= 65) {
+      const ltdAnnual = ltdBenefit * 12;
+      const ssdiAnnual = age >= disAge + 0.5 ? ssdiMonthly * 12 : 0;
+      const expenses = income * 0.60; // live on less
+      return ltdAnnual + ssdiAnnual - expenses;
+    }
+    const infl = Math.pow(1 + inflation, age - RETIRE_AGE);
+    return -income * 0.55 * infl + (age >= SS_AGE ? SS_ANNUAL : 0);
+  });
+
+  // SSDI-only (no LTD — e.g., employer doesn't offer it)
+  const ssdiOnly = buildTraj(age => {
+    if (age < disAge) return income * savingsRate;
+    if (age <= 65) {
+      const ssdiAnnual = age >= disAge + 0.5 ? ssdiMonthly * 12 : 0;
+      const expenses = income * 0.60;
+      return ssdiAnnual - expenses;
+    }
+    const infl = Math.pow(1 + inflation, age - RETIRE_AGE);
+    return -income * 0.55 * infl + (age >= SS_AGE ? SS_ANNUAL : 0);
+  });
+
+  makeChart('disability', 'chart-disability', 'line', {
+    labels: ageLabels,
+    datasets: [
+      { label: 'Baseline (No Disability)', data: baseline, borderColor: '#6ee7b7', borderWidth: 2.5, pointRadius: 0, fill: false },
+      { label: 'Temporary STD → Full Recovery', data: stdScenario, borderColor: '#60a5fa', borderWidth: 2, pointRadius: 0, fill: false, borderDash: [6, 3] },
+      { label: 'Permanent: LTD + SSDI', data: permScenario, borderColor: '#fbbf24', borderWidth: 2, pointRadius: 0, fill: false, borderDash: [8, 4] },
+      { label: 'Permanent: SSDI Only (no LTD)', data: ssdiOnly, borderColor: '#f87171', borderWidth: 2, pointRadius: 0, fill: false, borderDash: [4, 4] },
+    ]
+  }, baseOpts());
+}
+
+// ─────────────────────────────────────────────────────────────
+// STATE COMPARISON TAB
+// ─────────────────────────────────────────────────────────────
+const STATE_DATA = {
+  Nebraska: {
+    flag: '🌽',
+    // Progressive: ~4.5% effective on $94,760 single filer (2025, rates being phased down)
+    effectiveTaxRate: 0.0445,
+    salesTax: 0.0550,
+    propertyTaxRate: 0.0151, // highest of the 3 on home value
+    colIndex: 90,       // 90% of national avg
+    medianRent: 1050,   // Omaha area
+    stateTaxNote: 'Progressive, ~4.45% effective. Rates being cut annually through 2027.',
+    pros: 'Low COL, affordable housing, Medicaid expansion',
+    cons: 'Income tax, harsh winters, smaller job market',
+  },
+  Arizona: {
+    flag: '🌵',
+    effectiveTaxRate: 0.025, // flat 2.5%
+    salesTax: 0.0560,
+    propertyTaxRate: 0.0060,
+    colIndex: 103,
+    medianRent: 1500,
+    stateTaxNote: 'Flat 2.5% (Prop 208 struck down). Simple, predictable.',
+    pros: 'Low income tax, warm, growing economy, low property tax',
+    cons: 'Slightly above avg COL, heat, water concerns long-term',
+  },
+  Florida: {
+    flag: '🌴',
+    effectiveTaxRate: 0.0,
+    salesTax: 0.0600,
+    propertyTaxRate: 0.0083,
+    colIndex: 98,
+    medianRent: 1700,
+    stateTaxNote: 'No state income tax, ever. Enshrined in constitution.',
+    pros: 'No income tax, warm, no estate tax, near-avg COL',
+    cons: 'Higher insurance (flood/hurricane), rent up sharply, humidity',
+  }
+};
+
+function renderStates(p) {
+  const income = p ? p.income : (+document.getElementById('income').value || 94760);
+  const netWorth = p ? p.netWorth : (+document.getElementById('networth').value || 170000);
+  const expReturn = +document.getElementById('expReturn').value / 100;
+  const savingsRate = +document.getElementById('savingsRate').value / 100;
+
+  const stateKeys = Object.keys(STATE_DATA);
+
+  // Take-home: income minus state tax (federal same for all)
+  const stateTax = k => income * STATE_DATA[k].effectiveTaxRate;
+  const takeHome = k => income - stateTax(k);
+
+  document.getElementById('st-ne-takehome').textContent = fmt(takeHome('Nebraska'));
+  document.getElementById('st-az-takehome').textContent = fmt(takeHome('Arizona'));
+  document.getElementById('st-fl-takehome').textContent = fmt(takeHome('Florida'));
+
+  // Bar: state tax
+  makeChart('state-tax', 'chart-state-tax', 'bar', {
+    labels: stateKeys,
+    datasets: [{
+      label: 'Annual State Income Tax',
+      data: stateKeys.map(stateTax),
+      backgroundColor: ['#60a5fa', '#f59e0b', '#6ee7b7'],
+      borderWidth: 0, borderRadius: 6,
+    }]
+  }, {
+    ...baseOpts(),
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { ticks: { color: TICK_COLOR }, grid: { display: false } },
+      y: { ticks: { color: TICK_COLOR, callback: v => fmt(v) }, grid: { color: GRID_COLOR } }
+    }
+  });
+
+  // Bar: take-home
+  makeChart('state-pay', 'chart-state-pay', 'bar', {
+    labels: stateKeys,
+    datasets: [{
+      label: 'Annual Take-Home (after state tax)',
+      data: stateKeys.map(takeHome),
+      backgroundColor: ['#60a5fa', '#f59e0b', '#6ee7b7'],
+      borderWidth: 0, borderRadius: 6,
+    }]
+  }, {
+    ...baseOpts(),
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { ticks: { color: TICK_COLOR }, grid: { display: false } },
+      y: {
+        ticks: { color: TICK_COLOR, callback: v => fmt(v) },
+        grid: { color: GRID_COLOR },
+        min: Math.min(...stateKeys.map(takeHome)) * 0.97
+      }
+    }
+  });
+
+  // 30-year net worth projection per state
+  const years30 = 30;
+  const labels30 = Array.from({ length: years30 + 1 }, (_, i) => CURRENT_AGE + i);
+  const colors = { Nebraska: '#60a5fa', Arizona: '#f59e0b', Florida: '#6ee7b7' };
+
+  const statePaths = stateKeys.map(k => {
+    const stateSavings = takeHome(k) * savingsRate;
+    let port = netWorth;
+    const traj = [port];
+    for (let yr = 0; yr < years30; yr++) {
+      port = port * (1 + expReturn) + stateSavings;
+      traj.push(port);
+    }
+    return { label: k, data: traj, borderColor: colors[k], borderWidth: 2.5, pointRadius: 0, fill: false };
+  });
+
+  makeChart('state-long', 'chart-state-long', 'line', {
+    labels: labels30,
+    datasets: statePaths
+  }, baseOpts());
+
+  // Table
+  const tbody = document.getElementById('state-tbody');
+  tbody.innerHTML = '';
+
+  const rows = [
+    { label: 'State Income Tax Rate', vals: k => (STATE_DATA[k].effectiveTaxRate * 100).toFixed(2) + '%', num: k => STATE_DATA[k].effectiveTaxRate, best: 'min' },
+    { label: 'Annual State Tax on $94,760', vals: k => fmt(stateTax(k)), num: k => stateTax(k), best: 'min' },
+    { label: 'Annual Take-Home Pay', vals: k => fmt(takeHome(k)), num: k => takeHome(k), best: 'max' },
+    { label: 'Sales Tax Rate', vals: k => (STATE_DATA[k].salesTax * 100).toFixed(1) + '%', num: k => STATE_DATA[k].salesTax, best: 'min' },
+    { label: 'Avg Property Tax Rate', vals: k => (STATE_DATA[k].propertyTaxRate * 100).toFixed(2) + '%', num: k => STATE_DATA[k].propertyTaxRate, best: 'min' },
+    { label: 'Cost of Living Index', vals: k => STATE_DATA[k].colIndex + ' / 100', num: k => STATE_DATA[k].colIndex, best: 'min' },
+    { label: 'Median Monthly Rent', vals: k => fmt(STATE_DATA[k].medianRent) + '/mo', num: k => STATE_DATA[k].medianRent, best: 'min' },
+    { label: '30-yr Net Worth (median)', vals: k => fmt(statePaths.find(d => d.label === k).data[30]), num: k => statePaths.find(d => d.label === k).data[30], best: 'max' },
+    { label: 'Annual Savings vs Nebraska', vals: k => { const diff = takeHome(k) * savingsRate - takeHome('Nebraska') * savingsRate; return (diff >= 0 ? '+' : '') + fmt(diff) + '/yr'; }, num: null, best: null },
+    { label: 'Tax Note', vals: k => STATE_DATA[k].stateTaxNote, num: null, best: null },
+    { label: 'Pros', vals: k => STATE_DATA[k].pros, num: null, best: null },
+    { label: 'Cons', vals: k => STATE_DATA[k].cons, num: null, best: null },
+  ];
+
+  rows.forEach(row => {
+    const nums = row.num ? stateKeys.map(k => ({ k, v: row.num(k) })) : null;
+    const bestKey = nums && row.best === 'min' ? nums.reduce((a, b) => a.v < b.v ? a : b).k : nums && row.best === 'max' ? nums.reduce((a, b) => a.v > b.v ? a : b).k : null;
+    const worstKey = nums && row.best === 'min' ? nums.reduce((a, b) => a.v > b.v ? a : b).k : nums && row.best === 'max' ? nums.reduce((a, b) => a.v < b.v ? a : b).k : null;
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td style="color:#6b7280; font-size:12px;">${row.label}</td>` +
+      stateKeys.map(k => {
+        const cls = k === bestKey ? 'best-cell' : k === worstKey ? 'worst-cell' : '';
+        return `<td class="${cls}">${row.vals(k)}</td>`;
+      }).join('');
+    tbody.appendChild(tr);
+  });
+}
+
+// ─────────────────────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────────────────────
+window.addEventListener('load', () => {
+  onInput();
+  runAll();
+});
+</script>
+</body>
+</html>
