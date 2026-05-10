@@ -339,8 +339,56 @@ hr { border: none; border-top: 1px solid #2a2d3a; margin: 16px 0; }
       </div>
 
       <div class="chart-box">
-        <h3>Wealth Trajectory: Baseline vs Disability Scenarios</h3>
+        <h3>Wealth Trajectory: Baseline vs Disability Scenarios (Deterministic Median)</h3>
         <canvas id="chart-disability" height="130"></canvas>
+      </div>
+
+      <!-- ── DISABILITY MONTE CARLO ── -->
+      <div class="section-label" style="margin: 8px 0 12px;">Monte Carlo — 1,000 Simulations Per Scenario</div>
+      <div class="info-box">
+        Each scenario runs <strong>1,000 simulations</strong> with full market randomness layered on top of the disability income shock. Shaded bands = 25th–75th percentile. Median lines show the most likely path for each scenario.
+      </div>
+
+      <div class="cards" style="grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));">
+        <div class="card">
+          <div class="val" id="dmc-base-p50">—</div>
+          <div class="lbl">Baseline Median</div>
+          <div class="sub">No disability · age 90</div>
+        </div>
+        <div class="card">
+          <div class="val" style="color:#60a5fa;" id="dmc-std-p50">—</div>
+          <div class="lbl">STD → Recovery</div>
+          <div class="sub">Temporary, then full income returns</div>
+        </div>
+        <div class="card">
+          <div class="val warn" id="dmc-perm-p50">—</div>
+          <div class="lbl">Permanent LTD + SSDI</div>
+          <div class="sub">60% LTD + ~$1,450/mo SSDI</div>
+        </div>
+        <div class="card">
+          <div class="val bad" id="dmc-ssdi-p50">—</div>
+          <div class="lbl">SSDI Only</div>
+          <div class="sub">No LTD coverage · hardest scenario</div>
+        </div>
+      </div>
+
+      <div class="chart-box">
+        <h3>Monte Carlo Fan — All Disability Scenarios vs Baseline</h3>
+        <div class="chart-sub">Shaded band = 25th–75th %ile per scenario. Median line shown solid. Lower bands = higher risk.</div>
+        <canvas id="chart-dis-mc" height="140"></canvas>
+      </div>
+
+      <div class="two-col">
+        <div class="chart-box">
+          <h3>Ruin Rate by Scenario</h3>
+          <div class="chart-sub">% of 1,000 sims where portfolio hits $0 before age 90</div>
+          <canvas id="chart-dis-ruin" height="180"></canvas>
+        </div>
+        <div class="chart-box">
+          <h3>Portfolio at Retirement: Baseline vs Permanent Disability</h3>
+          <div class="chart-sub">Distribution of outcomes at your target retirement age</div>
+          <canvas id="chart-dis-retire-dist" height="180"></canvas>
+        </div>
       </div>
     </div>
 
@@ -741,6 +789,211 @@ function renderMonteCarlo(p, sim) {
 }
 
 // ─────────────────────────────────────────────────────────────
+// DISABILITY MONTE CARLO ENGINE
+// ─────────────────────────────────────────────────────────────
+function runDisabilityScenarioMC(scenario, disAge, stdMo, income, netWorth, expReturn, volatility, inflation, savingsRate) {
+  const RETIRE_AGE = 55;
+  const stdBenefit  = income * 0.60 / 12;
+  const ltdBenefit  = income * 0.60 / 12;
+  const ssdiMonthly = 1450;
+  const years = END_AGE - CURRENT_AGE;
+  const trajectories = [];
+  let ruinCount = 0;
+
+  for (let s = 0; s < N_SIMS; s++) {
+    let port = netWorth;
+    const traj = [port];
+    let ruined = false;
+
+    for (let yr = 1; yr <= years; yr++) {
+      const age = CURRENT_AGE + yr;
+      const r = randNormal(expReturn, volatility);
+      port *= (1 + r);
+
+      let cashFlow = 0;
+
+      if (scenario === 'baseline') {
+        if (age <= RETIRE_AGE) {
+          cashFlow = income * savingsRate;
+        } else {
+          const infl = Math.pow(1 + inflation, age - RETIRE_AGE);
+          cashFlow = -income * 0.70 * infl + (age >= SS_AGE ? SS_ANNUAL : 0);
+        }
+
+      } else if (scenario === 'std') {
+        // STD at disAge for stdMo months → full recovery
+        if (age < disAge) {
+          cashFlow = income * savingsRate;
+        } else if (age === disAge) {
+          // Year of disability onset: partial STD benefit + partial normal
+          const stdIncome   = stdBenefit * stdMo;
+          const normalIncome = (income / 12) * (12 - stdMo);
+          const expenses    = income * 0.80; // full lifestyle costs
+          cashFlow = stdIncome + normalIncome - expenses + income * savingsRate * ((12 - stdMo) / 12);
+        } else if (age <= RETIRE_AGE) {
+          cashFlow = income * savingsRate; // fully recovered
+        } else {
+          const infl = Math.pow(1 + inflation, age - RETIRE_AGE);
+          cashFlow = -income * 0.70 * infl + (age >= SS_AGE ? SS_ANNUAL : 0);
+        }
+
+      } else if (scenario === 'perm') {
+        // Permanent: LTD (60%) + SSDI after ~1yr wait
+        if (age < disAge) {
+          cashFlow = income * savingsRate;
+        } else if (age < 65) {
+          const ltdAnnual  = ltdBenefit * 12;
+          const ssdiAnnual = age >= disAge + 1 ? ssdiMonthly * 12 : 0;
+          const expenses   = income * 0.62; // tightened but still living
+          cashFlow = ltdAnnual + ssdiAnnual - expenses;
+        } else {
+          const infl = Math.pow(1 + inflation, Math.max(0, age - RETIRE_AGE));
+          cashFlow = -income * 0.50 * infl + (age >= SS_AGE ? SS_ANNUAL : 0);
+        }
+
+      } else if (scenario === 'ssdionly') {
+        // Hardest: SSDI only, no LTD
+        if (age < disAge) {
+          cashFlow = income * savingsRate;
+        } else if (age < 65) {
+          const ssdiAnnual = age >= disAge + 1 ? ssdiMonthly * 12 : 0;
+          const expenses   = income * 0.62;
+          cashFlow = ssdiAnnual - expenses; // significant deficit each year
+        } else {
+          const infl = Math.pow(1 + inflation, Math.max(0, age - RETIRE_AGE));
+          cashFlow = -income * 0.50 * infl + (age >= SS_AGE ? SS_ANNUAL : 0);
+        }
+      }
+
+      port += cashFlow;
+      if (port < 0) { port = 0; ruined = true; }
+      traj.push(port);
+    }
+
+    trajectories.push(traj);
+    if (ruined) ruinCount++;
+  }
+
+  return { trajectories, ruinCount };
+}
+
+function renderDisabilityMC() {
+  const income      = +document.getElementById('income').value      || 94760;
+  const netWorth    = +document.getElementById('networth').value    || 170000;
+  const expReturn   = +document.getElementById('expReturn').value   / 100;
+  const volatility  = +document.getElementById('volatility').value  / 100;
+  const inflation   = +document.getElementById('inflation').value   / 100;
+  const savingsRate = +document.getElementById('savingsRate').value / 100;
+  const disAge      = +document.getElementById('disAge').value      || 45;
+  const stdMo       = +document.getElementById('stdMonths').value   || 6;
+  const retireAge   = +document.getElementById('retireAge').value   || 55;
+
+  const args = [disAge, stdMo, income, netWorth, expReturn, volatility, inflation, savingsRate];
+  const keys  = ['baseline', 'std', 'perm', 'ssdionly'];
+  const sims  = {};
+  keys.forEach(k => { sims[k] = runDisabilityScenarioMC(k, ...args); });
+
+  // Median at age 90
+  const medianAtEnd = k => {
+    const vals = sims[k].trajectories.map(t => t[t.length - 1]).sort((a, b) => a - b);
+    return vals[Math.floor(0.5 * vals.length)];
+  };
+
+  document.getElementById('dmc-base-p50').textContent  = fmt(medianAtEnd('baseline'));
+  document.getElementById('dmc-std-p50').textContent   = fmt(medianAtEnd('std'));
+  document.getElementById('dmc-perm-p50').textContent  = fmt(medianAtEnd('perm'));
+  document.getElementById('dmc-ssdi-p50').textContent  = fmt(medianAtEnd('ssdionly'));
+
+  const labels = Array.from({ length: END_AGE - CURRENT_AGE + 1 }, (_, i) => CURRENT_AGE + i);
+
+  const palette = {
+    baseline: { line: '#6ee7b7', band: 'rgba(110,231,183,0.10)' },
+    std:      { line: '#60a5fa', band: 'rgba(96,165,250,0.10)'  },
+    perm:     { line: '#fbbf24', band: 'rgba(251,191,36,0.10)'  },
+    ssdionly: { line: '#f87171', band: 'rgba(248,113,113,0.10)' },
+  };
+  const names = { baseline: 'Baseline', std: 'STD→Recovery', perm: 'Perm LTD+SSDI', ssdionly: 'SSDI Only' };
+
+  // Fan chart: for each scenario emit upper-band / median / lower-band datasets
+  const datasets = [];
+  keys.forEach(k => {
+    const bands = getPctBands(sims[k].trajectories, [25, 50, 75]);
+    const c = palette[k];
+    datasets.push({ label: '_upper_' + k, data: bands[75], borderColor: 'transparent', backgroundColor: c.band, fill: '+1', pointRadius: 0, borderWidth: 0 });
+    datasets.push({ label: names[k],      data: bands[50], borderColor: c.line, borderWidth: 2.5, fill: false, pointRadius: 0 });
+    datasets.push({ label: '_lower_' + k, data: bands[25], borderColor: 'transparent', backgroundColor: c.band, fill: false, pointRadius: 0, borderWidth: 0 });
+  });
+
+  const fanOpts = {
+    ...baseOpts(),
+    plugins: {
+      legend: {
+        labels: {
+          color: LEGEND_COLOR, font: { size: 11 },
+          filter: item => !item.text.startsWith('_'),
+        }
+      },
+      tooltip: { callbacks: { label: ctx => !ctx.dataset.label.startsWith('_') ? `${ctx.dataset.label}: ${fmt(ctx.raw)}` : null } }
+    }
+  };
+
+  makeChart('dis-mc', 'chart-dis-mc', 'line', { labels, datasets }, fanOpts);
+
+  // Ruin rate bar chart
+  const ruinRates  = keys.map(k => +(sims[k].ruinCount / N_SIMS * 100).toFixed(1));
+  const ruinLabels = ['Baseline', 'STD→Recovery', 'Perm LTD+SSDI', 'SSDI Only'];
+  const ruinColors = ['#6ee7b7', '#60a5fa', '#fbbf24', '#f87171'];
+
+  makeChart('dis-ruin', 'chart-dis-ruin', 'bar', {
+    labels: ruinLabels,
+    datasets: [{
+      label: 'Ruin Rate (%)',
+      data: ruinRates,
+      backgroundColor: ruinColors,
+      borderWidth: 0, borderRadius: 6,
+    }]
+  }, {
+    ...baseOpts(false),
+    plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ctx.raw + '%' } } },
+    scales: {
+      x: { ticks: { color: TICK_COLOR, font: { size: 11 } }, grid: { display: false } },
+      y: { ticks: { color: TICK_COLOR, callback: v => v + '%' }, grid: { color: GRID_COLOR }, min: 0 }
+    }
+  });
+
+  // Distribution at retirement age: baseline vs permanent disability
+  const retireIdx = retireAge - CURRENT_AGE;
+  const makeHist = (vals, bins = 20) => {
+    const sorted = [...vals].sort((a, b) => a - b);
+    const min = sorted[0], max = sorted[sorted.length - 1];
+    const binSize = (max - min) / bins || 1;
+    const counts = Array(bins).fill(0);
+    sorted.forEach(v => { const b = Math.min(Math.floor((v - min) / binSize), bins - 1); counts[b]++; });
+    return { counts, min, binSize };
+  };
+
+  const baseVals = sims.baseline.trajectories.map(t => t[retireIdx]);
+  const permVals = sims.perm.trajectories.map(t => t[retireIdx]);
+  const bh = makeHist(baseVals);
+  const ph = makeHist(permVals);
+
+  makeChart('dis-retire-dist', 'chart-dis-retire-dist', 'bar', {
+    labels: bh.counts.map((_, i) => fmt(bh.min + i * bh.binSize)),
+    datasets: [
+      { label: 'Baseline',             data: bh.counts, backgroundColor: 'rgba(110,231,183,0.5)', borderColor: '#6ee7b7', borderWidth: 1, borderRadius: 3 },
+      { label: 'Permanent Disability', data: ph.counts, backgroundColor: 'rgba(248,113,113,0.4)', borderColor: '#f87171', borderWidth: 1, borderRadius: 3 },
+    ]
+  }, {
+    ...baseOpts(false),
+    plugins: { legend: { labels: { color: LEGEND_COLOR, font: { size: 11 } } } },
+    scales: {
+      x: { ticks: { color: TICK_COLOR, font: { size: 10 }, callback: (_, i) => i % 5 === 0 ? fmt(bh.min + i * bh.binSize) : '' }, grid: { display: false } },
+      y: { ticks: { color: TICK_COLOR }, grid: { color: GRID_COLOR }, title: { display: true, text: '# Simulations', color: TICK_COLOR, font: { size: 11 } } }
+    }
+  });
+}
+
+// ─────────────────────────────────────────────────────────────
 // DISABILITY TAB
 // ─────────────────────────────────────────────────────────────
 function renderDisability() {
@@ -825,6 +1078,8 @@ function renderDisability() {
     const infl = Math.pow(1 + inflation, age - RETIRE_AGE);
     return -income * 0.55 * infl + (age >= SS_AGE ? SS_ANNUAL : 0);
   });
+
+  renderDisabilityMC();
 
   makeChart('disability', 'chart-disability', 'line', {
     labels: ageLabels,
