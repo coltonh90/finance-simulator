@@ -102,9 +102,94 @@ hr { border: none; border-top: 1px solid #2a2d3a; margin: 16px 0; }
   .dis-grid { grid-template-columns: 1fr; }
   .two-col { grid-template-columns: 1fr; }
 }
+
+/* ── Lock screen ─────────────────────────────────────────── */
+#lock-screen {
+  position: fixed; inset: 0; z-index: 9999;
+  background: #0f1117;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 0;
+}
+#lock-screen .lock-logo {
+  font-size: 42px; margin-bottom: 18px; user-select: none;
+}
+#lock-screen h2 {
+  font-size: 20px; font-weight: 700; color: #fff;
+  margin-bottom: 4px; letter-spacing: 0.3px;
+}
+#lock-screen p {
+  font-size: 13px; color: #4b5563; margin-bottom: 32px;
+}
+#lock-screen .pin-dots {
+  display: flex; gap: 14px; margin-bottom: 28px;
+}
+#lock-screen .pin-dot {
+  width: 14px; height: 14px; border-radius: 50%;
+  border: 2px solid #2a2d3a;
+  background: transparent;
+  transition: background 0.15s, border-color 0.15s;
+}
+#lock-screen .pin-dot.filled {
+  background: #6ee7b7; border-color: #6ee7b7;
+}
+#lock-screen .pin-dot.error {
+  background: #f87171; border-color: #f87171;
+}
+#lock-screen .numpad {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+  width: 240px;
+}
+#lock-screen .num-btn {
+  background: #1a1d27; border: 1px solid #2a2d3a; border-radius: 12px;
+  color: #e0e0e0; font-size: 20px; font-weight: 600;
+  height: 64px; cursor: pointer;
+  transition: background 0.1s, transform 0.08s;
+  display: flex; align-items: center; justify-content: center;
+  user-select: none;
+}
+#lock-screen .num-btn:hover { background: #252836; }
+#lock-screen .num-btn:active { transform: scale(0.93); background: #2a2d3a; }
+#lock-screen .num-btn.del { font-size: 16px; color: #6b7280; }
+#lock-screen .num-btn.empty { cursor: default; background: transparent; border-color: transparent; }
+#lock-screen .lock-err {
+  margin-top: 22px; font-size: 13px; color: #f87171;
+  min-height: 20px; font-weight: 600; letter-spacing: 0.2px;
+}
 </style>
 </head>
 <body>
+
+<!-- ── Lock Screen ─────────────────────────────────────────── -->
+<div id="lock-screen">
+  <div class="lock-logo">🔒</div>
+  <h2>Financial Simulator</h2>
+  <p>Enter your 4-digit PIN to continue</p>
+  <div class="pin-dots" id="pin-dots">
+    <div class="pin-dot" id="dot-0"></div>
+    <div class="pin-dot" id="dot-1"></div>
+    <div class="pin-dot" id="dot-2"></div>
+    <div class="pin-dot" id="dot-3"></div>
+  </div>
+  <div class="numpad">
+    <button class="num-btn" onclick="pinPress('1')">1</button>
+    <button class="num-btn" onclick="pinPress('2')">2</button>
+    <button class="num-btn" onclick="pinPress('3')">3</button>
+    <button class="num-btn" onclick="pinPress('4')">4</button>
+    <button class="num-btn" onclick="pinPress('5')">5</button>
+    <button class="num-btn" onclick="pinPress('6')">6</button>
+    <button class="num-btn" onclick="pinPress('7')">7</button>
+    <button class="num-btn" onclick="pinPress('8')">8</button>
+    <button class="num-btn" onclick="pinPress('9')">9</button>
+    <button class="num-btn empty" disabled></button>
+    <button class="num-btn" onclick="pinPress('0')">0</button>
+    <button class="num-btn del" onclick="pinBack()">⌫</button>
+  </div>
+  <div class="lock-err" id="lock-err"></div>
+</div>
+
+<!-- ── App (hidden until unlocked) ───────────────────────── -->
+<div id="app" style="display:none">
 
 <div class="header">
   <div class="header-left">
@@ -544,6 +629,7 @@ hr { border: none; border-top: 1px solid #2a2d3a; margin: 16px 0; }
 
   </div><!-- end content -->
 </div><!-- end layout -->
+</div><!-- end #app -->
 
 <script>
 // ─────────────────────────────────────────────────────────────
@@ -1531,6 +1617,70 @@ window.addEventListener('load', () => {
   renderTierUI();
   onInput();
   runAll();
+});
+
+// ─────────────────────────────────────────────────────────────
+// PIN LOCK
+// ─────────────────────────────────────────────────────────────
+const CORRECT_PIN = '1990';   // ← change this to whatever you want
+let pinEntry = '';
+
+function pinPress(digit) {
+  if (pinEntry.length >= 4) return;
+  pinEntry += digit;
+  updateDots();
+  if (pinEntry.length === 4) validatePin();
+}
+
+function pinBack() {
+  pinEntry = pinEntry.slice(0, -1);
+  updateDots();
+  clearErr();
+}
+
+function updateDots() {
+  for (let i = 0; i < 4; i++) {
+    const dot = document.getElementById('dot-' + i);
+    dot.classList.toggle('filled', i < pinEntry.length);
+    dot.classList.remove('error');
+  }
+}
+
+function validatePin() {
+  if (pinEntry === CORRECT_PIN) {
+    // Unlock: fade out lock screen, show app
+    const ls = document.getElementById('lock-screen');
+    ls.style.transition = 'opacity 0.4s';
+    ls.style.opacity = '0';
+    setTimeout(() => {
+      ls.style.display = 'none';
+      document.getElementById('app').style.display = 'block';
+    }, 420);
+  } else {
+    // Wrong PIN: shake dots red, clear after delay
+    for (let i = 0; i < 4; i++) {
+      const dot = document.getElementById('dot-' + i);
+      dot.classList.add('error');
+      dot.classList.remove('filled');
+    }
+    document.getElementById('lock-err').textContent = 'Incorrect PIN. Try again.';
+    setTimeout(() => {
+      pinEntry = '';
+      updateDots();
+      clearErr();
+    }, 900);
+  }
+}
+
+function clearErr() {
+  document.getElementById('lock-err').textContent = '';
+}
+
+// Keyboard support
+document.addEventListener('keydown', e => {
+  if (document.getElementById('lock-screen').style.display === 'none') return;
+  if (e.key >= '0' && e.key <= '9') pinPress(e.key);
+  else if (e.key === 'Backspace') pinBack();
 });
 </script>
 </body>
