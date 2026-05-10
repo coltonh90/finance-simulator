@@ -87,6 +87,15 @@ hr { border: none; border-top: 1px solid #2a2d3a; margin: 16px 0; }
 .info-box { background: #1e2130; border-radius: 8px; padding: 12px; font-size: 12px; color: #9ca3af; margin-bottom: 16px; line-height: 1.6; }
 .info-box strong { color: #e0e0e0; }
 
+.tier-row { display:flex; align-items:center; gap:5px; margin-bottom:7px; flex-wrap:wrap; }
+.tier-row input[type="number"] { background:#252836; border:1px solid #2a2d3a; border-radius:6px; color:#e0e0e0; padding:5px 6px; font-size:12px; outline:none; width:52px; }
+.tier-row input[type="number"]:focus { border-color:#6ee7b7; }
+.tier-row span { font-size:11px; color:#4b5563; }
+.tier-row .tier-rate { width:50px; color:#6ee7b7; font-weight:700; }
+.tier-remove { background:none; border:none; color:#374151; cursor:pointer; font-size:16px; padding:0 2px; line-height:1; }
+.tier-remove:hover { color:#f87171; }
+.tier-label { font-size:10px; color:#4b5563; width:100%; margin-top:-2px; }
+
 @media (max-width: 700px) {
   .layout { flex-direction: column; }
   .sidebar { width: 100%; }
@@ -176,12 +185,24 @@ hr { border: none; border-top: 1px solid #2a2d3a; margin: 16px 0; }
       <label>Inflation <span class="val" id="inf-val">3.0%</span></label>
       <input type="range" id="inflation" min="1" max="7" step="0.5" value="3" oninput="onInput()">
     </div>
+    <hr>
+    <div class="section-label">Life Expectancy</div>
     <div class="input-group">
-      <label>Safe Withdrawal Rate <span class="val" id="swr-val">4.0%</span></label>
-      <input type="range" id="swr" min="2" max="6" step="0.25" value="4" oninput="onInput()">
+      <label>Life Expectancy (age)</label>
+      <input type="number" id="lifeExp" value="87" min="70" max="105" oninput="onInput()">
+    </div>
+    <div style="font-size:10px; color:#4b5563; margin-bottom:12px; line-height:1.5;">
+      Male median ~81 · 90th %ile ~95 at age 35.<br>
+      Use 95–100 for conservative planning.
     </div>
 
-    <button class="btn" onclick="runAll()">Run Simulation</button>
+    <hr>
+    <div class="section-label">Withdrawal Schedule</div>
+    <div style="font-size:10px; color:#4b5563; margin-bottom:10px;">Set spending rate by life phase. Each tier = % of initial retirement portfolio, inflation-adjusted.</div>
+    <div id="tier-list"></div>
+    <button onclick="addWithdrawalTier()" style="width:100%; padding:7px; border-radius:6px; font-size:12px; font-weight:600; cursor:pointer; border:1px dashed #2a2d3a; background:transparent; color:#6b7280; margin-top:4px;" onmouseover="this.style.borderColor='#6ee7b7';this.style.color='#6ee7b7'" onmouseout="this.style.borderColor='#2a2d3a';this.style.color='#6b7280'">+ Add Age Tier</button>
+
+    <button class="btn" onclick="runAll()" style="margin-top:14px;">Run Simulation</button>
   </div>
 
   <!-- MAIN CONTENT -->
@@ -530,12 +551,84 @@ hr { border: none; border-top: 1px solid #2a2d3a; margin: 16px 0; }
 // ─────────────────────────────────────────────────────────────
 const CURRENT_AGE = 35;
 const BIRTH_YEAR = 1990;
-const END_AGE = 90;
 const N_SIMS = 1000;
 const SS_AGE = 67;
 const SS_ANNUAL = 18000; // ~$1,500/mo rough Social Security estimate at 67
 
 const charts = {};
+
+// ─── WITHDRAWAL TIERS ───────────────────────────────────────
+let withdrawalTiers = [
+  { from: 55, to: 65, rate: 4.0 },
+  { from: 65, to: 75, rate: 3.5 },
+  { from: 75, to: 87, rate: 3.0 },
+];
+
+function renderTierUI() {
+  const lifeExp = +document.getElementById('lifeExp').value || 87;
+  const list = document.getElementById('tier-list');
+  if (!list) return;
+  list.innerHTML = '';
+  withdrawalTiers.forEach((t, i) => {
+    const row = document.createElement('div');
+    row.className = 'tier-row';
+    row.innerHTML = `
+      <span style="font-size:10px;color:#6b7280;width:32px;">Age</span>
+      <input type="number" value="${t.from}" min="40" max="104" oninput="updateTier(${i},'from',this.value)">
+      <span>–</span>
+      <input type="number" value="${t.to}" min="41" max="${lifeExp}" oninput="updateTier(${i},'to',this.value)">
+      <input type="number" class="tier-rate" value="${t.rate}" min="0.5" max="10" step="0.25" oninput="updateTier(${i},'rate',this.value)">
+      <span>%</span>
+      <button class="tier-remove" onclick="removeWithdrawalTier(${i})" title="Remove">×</button>
+      <div class="tier-label">${fmt(calcTierSpend(t.rate))} · initial spend target</div>
+    `;
+    list.appendChild(row);
+  });
+}
+
+function calcTierSpend(rate) {
+  // Estimate annual spend for this tier based on retirement portfolio (deterministic rough estimate)
+  const income = +document.getElementById('income').value || 94760;
+  const annualSpendRaw = +document.getElementById('annualSpend').value || 0;
+  const spend = annualSpendRaw > 0 ? annualSpendRaw : income * 0.70;
+  const firstRate = withdrawalTiers[0]?.rate / 100 || 0.04;
+  const impliedPort = spend / firstRate;
+  return impliedPort * rate / 100;
+}
+
+function updateTier(i, field, val) {
+  withdrawalTiers[i][field] = field === 'rate' ? +val : +val;
+  renderTierUI();
+}
+
+function addWithdrawalTier() {
+  const lifeExp = +document.getElementById('lifeExp').value || 87;
+  const last = withdrawalTiers[withdrawalTiers.length - 1];
+  const newFrom = last ? last.to : (+document.getElementById('retireAge').value || 55);
+  const newTo   = Math.min(newFrom + 10, lifeExp);
+  const newRate = last ? Math.max(2, last.rate - 0.5) : 4.0;
+  withdrawalTiers.push({ from: newFrom, to: newTo, rate: newRate });
+  renderTierUI();
+}
+
+function removeWithdrawalTier(i) {
+  if (withdrawalTiers.length <= 1) return;
+  withdrawalTiers.splice(i, 1);
+  renderTierUI();
+}
+
+function getTieredWithdrawal(age, retireAge, initialPort, inflation, tiers) {
+  if (age <= retireAge || !initialPort) return 0;
+  const inflFactor = Math.pow(1 + inflation, age - retireAge);
+  // Find matching tier (use last tier if age exceeds all)
+  const tier = tiers.slice().reverse().find(t => age >= t.from) || tiers[tiers.length - 1];
+  const rate = tier ? tier.rate / 100 : 0.04;
+  return initialPort * rate * inflFactor;
+}
+
+function getLifeExp() {
+  return +document.getElementById('lifeExp').value || 87;
+}
 
 // ─────────────────────────────────────────────────────────────
 // HELPERS
@@ -595,34 +688,37 @@ function baseOpts(yFmt = true) {
 // PARAMS
 // ─────────────────────────────────────────────────────────────
 function getP_() {
-  const income = +document.getElementById('income').value || 94760;
-  const netWorth = +document.getElementById('networth').value || 170000;
-  const savingsRate = +document.getElementById('savingsRate').value / 100;
-  const retireAge = +document.getElementById('retireAge').value || 55;
+  const income       = +document.getElementById('income').value       || 94760;
+  const netWorth     = +document.getElementById('networth').value     || 170000;
+  const savingsRate  = +document.getElementById('savingsRate').value  / 100;
+  const retireAge    = +document.getElementById('retireAge').value    || 55;
   const annualSpendRaw = +document.getElementById('annualSpend').value;
-  const expReturn = +document.getElementById('expReturn').value / 100;
-  const volatility = +document.getElementById('volatility').value / 100;
-  const inflation = +document.getElementById('inflation').value / 100;
-  const swr = +document.getElementById('swr').value / 100;
+  const expReturn    = +document.getElementById('expReturn').value    / 100;
+  const volatility   = +document.getElementById('volatility').value   / 100;
+  const inflation    = +document.getElementById('inflation').value    / 100;
+  const lifeExp      = getLifeExp();
+  const tiers        = withdrawalTiers;
 
-  const annualSpend = annualSpendRaw > 0 ? annualSpendRaw : income * 0.70;
-  const fiNumber = annualSpend / swr;
+  const annualSpend  = annualSpendRaw > 0 ? annualSpendRaw : income * 0.70;
+  const firstRate    = tiers[0]?.rate / 100 || 0.04;
+  const fiNumber     = annualSpend / firstRate;
   const annualSavings = income * savingsRate;
 
-  return { income, netWorth, savingsRate, retireAge, annualSpend, expReturn, volatility, inflation, swr, fiNumber, annualSavings };
+  return { income, netWorth, savingsRate, retireAge, annualSpend, expReturn, volatility, inflation, lifeExp, tiers, fiNumber, annualSavings, firstRate };
 }
 
 // ─────────────────────────────────────────────────────────────
 // MONTE CARLO ENGINE
 // ─────────────────────────────────────────────────────────────
 function runSims(p) {
-  const { netWorth, annualSavings, retireAge, expReturn, volatility, inflation, annualSpend } = p;
-  const years = END_AGE - CURRENT_AGE;
+  const { netWorth, annualSavings, retireAge, expReturn, volatility, inflation, lifeExp, tiers } = p;
+  const years = lifeExp - CURRENT_AGE;
   const trajectories = [];
   let ruinCount = 0;
 
   for (let s = 0; s < N_SIMS; s++) {
     let port = netWorth;
+    let initialPort = null;
     const traj = [port];
     let ruined = false;
 
@@ -634,8 +730,9 @@ function runSims(p) {
       if (age <= retireAge) {
         port += annualSavings;
       } else {
-        const inflFactor = Math.pow(1 + inflation, age - retireAge);
-        port -= annualSpend * inflFactor;
+        if (!initialPort) initialPort = port; // lock in at-retirement portfolio
+        const withdrawal = getTieredWithdrawal(age, retireAge, initialPort, inflation, tiers);
+        port -= withdrawal;
         if (age >= SS_AGE) port += SS_ANNUAL;
       }
 
@@ -670,7 +767,7 @@ function getPctBands(trajectories, pcts) {
 // ─────────────────────────────────────────────────────────────
 function estimateFiAge(p) {
   let port = p.netWorth;
-  for (let age = CURRENT_AGE; age <= END_AGE; age++) {
+  for (let age = CURRENT_AGE; age <= p.lifeExp; age++) {
     if (port >= p.fiNumber) return age;
     port = port * (1 + p.expReturn) + p.annualSavings;
   }
@@ -688,9 +785,9 @@ function onInput() {
   document.getElementById('ret-val').textContent = (p.expReturn * 100).toFixed(1) + '%';
   document.getElementById('vol-val').textContent = Math.round(p.volatility * 100) + '%';
   document.getElementById('inf-val').textContent = (p.inflation * 100).toFixed(1) + '%';
-  document.getElementById('swr-val').textContent = (p.swr * 100).toFixed(2) + '%';
   document.getElementById('hdr-nw').textContent  = fmt(p.netWorth);
   document.getElementById('hdr-inc').textContent = fmt(p.income);
+  renderTierUI();
   // Keep STD/LTD defaults in sync with income (only if user hasn't edited them away from default)
   const defaultBenefit = Math.round(p.income * 0.60 / 12);
   ['stdBenefit', 'ltdBenefit'].forEach(id => {
@@ -741,7 +838,7 @@ function renderOverview(p, sim) {
 
   document.getElementById('ov-fi-num').textContent = fmt(fiNumber);
   document.getElementById('ov-fi-year').textContent = fiAge ? (BIRTH_YEAR + fiAge).toString() : '2060+';
-  document.getElementById('ov-fi-sub').textContent = fiAge ? `${fiAge - CURRENT_AGE} years from now` : 'Increase savings rate';
+  document.getElementById('ov-fi-sub').textContent = fiAge ? `${fiAge - CURRENT_AGE} yrs away · to age ${p.lifeExp}` : 'Increase savings rate';
   document.getElementById('ov-spend').textContent = fmt(annualSpend);
   document.getElementById('ov-annual-savings').textContent = fmt(annualSavings);
 
@@ -756,7 +853,7 @@ function renderOverview(p, sim) {
 
   // Fan chart
   const bands = getPctBands(sim.trajectories, [10, 25, 50, 75, 90]);
-  const labels = Array.from({ length: END_AGE - CURRENT_AGE + 1 }, (_, i) => CURRENT_AGE + i);
+  const labels = Array.from({ length: p.lifeExp - CURRENT_AGE + 1 }, (_, i) => CURRENT_AGE + i);
 
   makeChart('overview', 'chart-overview', 'line', {
     labels,
@@ -829,7 +926,7 @@ function renderMonteCarlo(p, sim) {
 
   // Fan chart with 7 bands
   const bands = getPctBands(sim.trajectories, [5, 10, 25, 50, 75, 90, 95]);
-  const labels = Array.from({ length: END_AGE - CURRENT_AGE + 1 }, (_, i) => CURRENT_AGE + i);
+  const labels = Array.from({ length: p.lifeExp - CURRENT_AGE + 1 }, (_, i) => CURRENT_AGE + i);
 
   makeChart('mc', 'chart-mc', 'line', {
     labels,
@@ -877,10 +974,10 @@ function renderMonteCarlo(p, sim) {
 // ─────────────────────────────────────────────────────────────
 // DISABILITY MONTE CARLO ENGINE
 // ─────────────────────────────────────────────────────────────
-function runDisabilityScenarioMC(scenario, disAge, stdMo, income, netWorth, expReturn, volatility, inflation, savingsRate, stdBenefit, ltdBenefit, ssdiMonthly, ssiMonthly, stdStartMo, ltdElimMo, ssdiStartMo, ssiStartMo, ssdiOffsetsLtd, ptIncome, ptStartAge, ptEndAge) {
+function runDisabilityScenarioMC(scenario, disAge, stdMo, income, netWorth, expReturn, volatility, inflation, savingsRate, stdBenefit, ltdBenefit, ssdiMonthly, ssiMonthly, stdStartMo, ltdElimMo, ssdiStartMo, ssiStartMo, ssdiOffsetsLtd, ptIncome, ptStartAge, ptEndAge, lifeExp, tiers) {
   const RETIRE_AGE = 55;
   const effectiveLtd = ssdiOffsetsLtd ? Math.max(0, ltdBenefit - ssdiMonthly) : ltdBenefit;
-  const years = END_AGE - CURRENT_AGE;
+  const years = lifeExp - CURRENT_AGE;
   const trajectories = [];
   let ruinCount = 0;
 
@@ -1003,9 +1100,13 @@ function renderDisabilityMC() {
   const disAge      = +document.getElementById('disAge').value      || 45;
   const stdMo       = +document.getElementById('stdMonths').value   || 6;
   const retireAge   = +document.getElementById('retireAge').value   || 55;
-  const { stdBenefit, ltdBenefit, ssdiMonthly, ssiMonthly } = getDisabilityBenefits();
+  const { stdBenefit, ltdBenefit, ssdiMonthly, ssiMonthly,
+          stdStartMo, ltdElimMo, ssdiStartMo, ssiStartMo,
+          ssdiOffsetsLtd, ptIncome, ptStartAge, ptEndAge } = getDisabilityBenefits();
+  const lifeExp = getLifeExp();
+  const tiers   = withdrawalTiers;
 
-  const args = [disAge, stdMo, income, netWorth, expReturn, volatility, inflation, savingsRate, stdBenefit, ltdBenefit, ssdiMonthly, ssiMonthly, stdStartMo, ltdElimMo, ssdiStartMo, ssiStartMo, ssdiOffsetsLtd, ptIncome, ptStartAge, ptEndAge];
+  const args = [disAge, stdMo, income, netWorth, expReturn, volatility, inflation, savingsRate, stdBenefit, ltdBenefit, ssdiMonthly, ssiMonthly, stdStartMo, ltdElimMo, ssdiStartMo, ssiStartMo, ssdiOffsetsLtd, ptIncome, ptStartAge, ptEndAge, lifeExp, tiers];
   const keys  = ['baseline', 'std', 'perm', 'ssdionly', 'ssi'];
   const sims  = {};
   keys.forEach(k => { sims[k] = runDisabilityScenarioMC(k, ...args); });
@@ -1021,7 +1122,7 @@ function renderDisabilityMC() {
   document.getElementById('dmc-perm-p50').textContent  = fmt(medianAtEnd('perm'));
   document.getElementById('dmc-ssdi-p50').textContent  = fmt(medianAtEnd('ssdionly'));
 
-  const labels = Array.from({ length: END_AGE - CURRENT_AGE + 1 }, (_, i) => CURRENT_AGE + i);
+  const labels = Array.from({ length: lifeExp - CURRENT_AGE + 1 }, (_, i) => CURRENT_AGE + i);
 
   const palette = {
     baseline: { line: '#6ee7b7', band: 'rgba(110,231,183,0.10)' },
@@ -1165,7 +1266,8 @@ function renderDisability() {
   document.getElementById('d-pt-total').textContent  = ptYears > 0 ? fmt(ptIncome * 12 * ptYears) : '—';
 
   // Build deterministic trajectory lines
-  const years = END_AGE - CURRENT_AGE + 1;
+  const lifeExp = getLifeExp();
+  const years = lifeExp - CURRENT_AGE + 1;
   const ageLabels = Array.from({ length: years }, (_, i) => CURRENT_AGE + i);
   const RETIRE_AGE = retireAge;
 
@@ -1426,6 +1528,7 @@ function renderStates(p) {
 // INIT
 // ─────────────────────────────────────────────────────────────
 window.addEventListener('load', () => {
+  renderTierUI();
   onInput();
   runAll();
 });
