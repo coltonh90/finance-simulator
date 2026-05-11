@@ -1454,7 +1454,7 @@ function renderDisabilityMC() {
         <strong style="color:#fbbf24;">Permanent disability (LTD + SSDI):</strong> With disability onset at age ${disAge}, your median projected portfolio at age ${lifeExp} is <strong style="color:${portColor};">${fmt(permMed)}</strong>. Your ruin risk is <strong style="color:${ruinColor(permRuin)};">${riskLevel} at ${permRuin}%</strong>.
       </p>
       <p style="margin-bottom:8px; color:#9ca3af;">
-        LTD ($${fmt(ltdBenefit)}/mo flat) runs to 65 · SSDI ($${fmt(ssdiMonthly)}/mo + ${(inflation*100).toFixed(1)}% COLA) runs to 67 · SS begins at 67 · Monthly expenses: $${fmt(disMonthlyExpenses)}/mo
+        LTD (${fmt(ltdBenefit)}/mo flat) runs to 65 · SSDI (${fmt(ssdiMonthly)}/mo + ${(inflation*100).toFixed(1)}% COLA) runs to 67 · SS begins at 67 · Monthly expenses: ${fmt(disMonthlyExpenses)}/mo
       </p>
       <p style="color:#4b5563; font-size:11px; margin-top:4px;">
         ${N_SIMS.toLocaleString()} simulations with randomised market returns (${(expReturn*100).toFixed(1)}% avg, ${(volatility*100).toFixed(1)}% volatility). The P25–P75 band shows where 50% of outcomes land.
@@ -1854,7 +1854,7 @@ function renderSuggested() {
 
   // Monthly gap card
   const gapEl = document.getElementById('sm-monthly-gap');
-  gapEl.textContent  = gapMo > 0 ? `−$${fmt(gapMo)}/mo` : `+$${fmt(incMo - expMo)}/mo`;
+  gapEl.textContent  = gapMo > 0 ? `−${fmt(gapMo)}/mo` : `+${fmt(incMo - expMo)}/mo`;
   gapEl.style.color  = gapMo > 0 ? '#f87171' : '#6ee7b7';
   gapEl.className    = 'val';
 
@@ -1913,7 +1913,7 @@ function renderSuggested() {
       color: '#6ee7b7',
       income: Math.round(p.income / 12),
       expense: Math.round(p.income / 12),  // spending ≈ income pre-disability
-      note: `Saving $${fmt(p.savingsPhases[0]?.monthlyAmount || 0)}/mo toward disability`,
+      note: `Saving ${fmt(p.savingsPhases[0]?.monthlyAmount || 0)}/mo toward disability`,
     },
     {
       name: `STD — 90 days (Age ${disAge})`,
@@ -1927,14 +1927,14 @@ function renderSuggested() {
       color: '#fbbf24',
       income: Math.round(effLtd + ssdiMonthly),
       expense: expMo,
-      note: `LTD $${fmt(effLtd)}/mo flat · SSDI $${fmt(ssdiMonthly)}/mo growing at ${(inflation*100).toFixed(1)}% COLA`,
+      note: `LTD ${fmt(effLtd)}/mo flat · SSDI ${fmt(ssdiMonthly)}/mo growing at ${(inflation*100).toFixed(1)}% COLA`,
     },
     {
       name: `SSDI Only (Age 65–67)`,
       color: '#fb923c',
       income: Math.round(ssdiAt65),
       expense: expMo,
-      note: `LTD ends at 65. SSDI continues (~$${fmt(Math.round(ssdiAt65))}/mo with COLA).`,
+      note: `LTD ends at 65. SSDI continues (~${fmt(Math.round(ssdiAt65))}/mo with COLA).`,
     },
     {
       name: `Social Security (Age 67–${lifeExp})`,
@@ -1958,13 +1958,13 @@ function renderSuggested() {
         ${cfPhases.map(ph => {
           const gap   = ph.income - ph.expense;
           const gapColor = gap >= 0 ? '#6ee7b7' : '#f87171';
-          const gapStr   = (gap >= 0 ? '+' : '') + '$' + fmt(Math.abs(gap)) + '/mo';
+          const gapStr   = (gap >= 0 ? '+' : '−') + fmt(Math.abs(gap)) + '/mo';
           return `<tr style="border-bottom:1px solid #1e2130;">
             <td style="padding:9px 10px; font-weight:600; color:#e0e0e0; white-space:nowrap;">
               <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${ph.color};margin-right:6px;vertical-align:middle;"></span>${ph.name}
             </td>
-            <td style="padding:9px 10px; text-align:right; color:#6ee7b7; font-weight:700;">$${fmt(ph.income)}</td>
-            <td style="padding:9px 10px; text-align:right; color:#f87171; font-weight:700;">$${fmt(ph.expense)}</td>
+            <td style="padding:9px 10px; text-align:right; color:#6ee7b7; font-weight:700;">${fmt(ph.income)}</td>
+            <td style="padding:9px 10px; text-align:right; color:#f87171; font-weight:700;">${fmt(ph.expense)}</td>
             <td style="padding:9px 10px; text-align:right; font-weight:700; color:${gapColor};">${gapStr}</td>
             <td style="padding:9px 10px; color:#6b7280; font-size:11px;">${ph.note}</td>
           </tr>`;
@@ -2038,20 +2038,20 @@ function renderSuggested() {
 
   // Monthly gap
   if (gapMo > 0) {
-    recs.push({ priority: gapMo > 1000 ? 'high' : 'warn', icon: '⚠', text: `Your benefits ($${fmt(incMo)}/mo) fall $${fmt(gapMo)}/mo short of your $${fmt(expMo)}/mo expense target. Your portfolio must cover this gap. At current drawdown that's roughly ${runway} years of runway — verify LTD is in force and SSDI estimate is current at SSA.gov.` });
+    recs.push({ priority: gapMo > 1000 ? 'high' : 'warn', icon: '⚠', text: `Your benefits (${fmt(incMo)}/mo) fall ${fmt(gapMo)}/mo short of your ${fmt(expMo)}/mo expense target. Your portfolio must cover this gap. At current drawdown that's roughly ${runway} years of runway — verify LTD is in force and SSDI estimate is current at SSA.gov.` });
   } else {
-    recs.push({ priority: 'good', icon: '✓', text: `Your LTD + SSDI benefits ($${fmt(incMo)}/mo) cover your $${fmt(expMo)}/mo expense target — no portfolio drawdown needed during LTD phase. Keep LTD policy active and update SSDI estimate annually.` });
+    recs.push({ priority: 'good', icon: '✓', text: `Your LTD + SSDI benefits (${fmt(incMo)}/mo) cover your ${fmt(expMo)}/mo expense target — no portfolio drawdown needed during LTD phase. Keep LTD policy active and update SSDI estimate annually.` });
   }
 
   // LTD ends at 65
   const ssdiAt65val = Math.round(ssdiMonthly * Math.pow(1 + inflation, Math.max(0, 65 - ssdiStartAge)));
   const gapAt65 = Math.max(0, expMo - ssdiAt65val);
   if (gapAt65 > 0) {
-    recs.push({ priority: 'warn', icon: '⚠', text: `When LTD ends at 65, your income drops to SSDI only (~$${fmt(ssdiAt65val)}/mo with COLA). Monthly gap jumps to $${fmt(gapAt65)}/mo until SS starts at 67. Your portfolio at 65 (${fmt(port65)}) must bridge this 2-year window.` });
+    recs.push({ priority: 'warn', icon: '⚠', text: `When LTD ends at 65, your income drops to SSDI only (~${fmt(ssdiAt65val)}/mo with COLA). Monthly gap jumps to ${fmt(gapAt65)}/mo until SS starts at 67. Your portfolio at 65 (${fmt(port65)}) must bridge this 2-year window.` });
   }
 
   // HSA
-  recs.push({ priority: 'good', icon: '💡', text: `HSA Shoebox: $${fmt(hsaBal)} now → $${fmt(Math.round(hsaAt65))} tax-free at 65. Save every medical receipt from today forward. Parkinson's care costs grow over time — this fund is your healthcare buffer.` });
+  recs.push({ priority: 'good', icon: '💡', text: `HSA Shoebox: ${fmt(hsaBal)} now → ${fmt(Math.round(hsaAt65))} tax-free at 65. Save every medical receipt from today forward. Parkinson's care costs grow over time — this fund is your healthcare buffer.` });
 
   // SSDI timing
   recs.push({ priority: 'info', icon: '📋', text: `SSDI: apply immediately at onset — the 5-month waiting period starts from your first day unable to work. Approval takes 3–6 months on average. Your model assumes SSDI starts at age ${ssdiStartAge}.` });
@@ -2061,7 +2061,7 @@ function renderSuggested() {
   const ssGap    = Math.max(0, expMo - Math.round(SS_ANNUAL / 12));
   if (portAt67 > 0 && ssGap > 0) {
     const ssRunway = (portAt67 / (ssGap * 12)).toFixed(1);
-    recs.push({ priority: ssRunway > 20 ? 'good' : 'warn', icon: ssRunway > 20 ? '✓' : '⚠', text: `At SS age (67) your portfolio is ${fmt(portAt67)}. SS covers $${fmt(Math.round(SS_ANNUAL/12))}/mo — gap of $${fmt(ssGap)}/mo comes from portfolio. That extends ~${ssRunway} more years from age 67.` });
+    recs.push({ priority: ssRunway > 20 ? 'good' : 'warn', icon: ssRunway > 20 ? '✓' : '⚠', text: `At SS age (67) your portfolio is ${fmt(portAt67)}. SS covers ${fmt(Math.round(SS_ANNUAL/12))}/mo — gap of ${fmt(ssGap)}/mo comes from portfolio. That extends ~${ssRunway} more years from age 67.` });
   }
 
   // Ruin risk
