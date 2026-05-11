@@ -682,7 +682,7 @@ const BIRTH_YEAR = 1990;
 const N_SIMS = 1000;
 const SS_AGE = 67;
 const SS_ANNUAL = 18000; // ~$1,500/mo rough Social Security estimate at 67
-const SSDI_COLA = 0.025; // 2.5% annual COLA for SSDI and SSI; LTD is always flat
+// SSDI, SSI, and PT income grow at the model's inflation rate (same rate, no real gain — just purchasing power maintenance). LTD is always flat.
 
 const charts = {};
 
@@ -1180,9 +1180,9 @@ function runDisabilityScenarioMC(scenario, disAge, stdMo, income, netWorth, expR
           const ltdStartMonth  = stdStartMo + stdMo + ltdElimMo;
           const ltdAnnual  = (monthsDisabled >= ltdStartMonth && age < 65) ? effectiveLtd * 12 : 0; // LTD flat
           const ssdiStartAge = disAge + ssdiStartMo / 12;
-          const ssdiCola   = Math.pow(1 + SSDI_COLA, Math.max(0, age - ssdiStartAge));
+          const ssdiCola   = Math.pow(1 + inflation, Math.max(0, age - ssdiStartAge));
           const ssdiAnnual = monthsDisabled >= ssdiStartMo ? ssdiMonthly * 12 * ssdiCola : 0;
-          const ptCola     = ptIncome > 0 && age >= ptStartAge ? Math.pow(1 + SSDI_COLA, age - ptStartAge) : 1;
+          const ptCola     = ptIncome > 0 && age >= ptStartAge ? Math.pow(1 + inflation, age - ptStartAge) : 1;
           const ptAnnual   = ptIncome > 0 && age >= ptStartAge && age <= ptEndAge ? ptIncome * 12 * ptCola : 0;
           cashFlow = ltdAnnual + ssdiAnnual + ptAnnual - income * 0.62;
         } else {
@@ -1198,9 +1198,9 @@ function runDisabilityScenarioMC(scenario, disAge, stdMo, income, netWorth, expR
         } else if (age < 67) {
           const monthsDisabled = (age - disAge) * 12;
           const ssdiStartAge = disAge + ssdiStartMo / 12;
-          const ssdiCola   = Math.pow(1 + SSDI_COLA, Math.max(0, age - ssdiStartAge));
+          const ssdiCola   = Math.pow(1 + inflation, Math.max(0, age - ssdiStartAge));
           const ssdiAnnual = monthsDisabled >= ssdiStartMo ? ssdiMonthly * 12 * ssdiCola : 0;
-          const ptCola     = ptIncome > 0 && age >= ptStartAge ? Math.pow(1 + SSDI_COLA, age - ptStartAge) : 1;
+          const ptCola     = ptIncome > 0 && age >= ptStartAge ? Math.pow(1 + inflation, age - ptStartAge) : 1;
           const ptAnnual   = ptIncome > 0 && age >= ptStartAge && age <= ptEndAge ? ptIncome * 12 * ptCola : 0;
           cashFlow = ssdiAnnual + ptAnnual - income * 0.62;
         } else {
@@ -1215,12 +1215,12 @@ function runDisabilityScenarioMC(scenario, disAge, stdMo, income, netWorth, expR
           cashFlow = getSavingsForAge(age, savingsPhases);
         } else if (age < 67) {
           // No SSDI qualified; spending from portfolio with any PT income
-          const ptCola   = ptIncome > 0 && age >= ptStartAge ? Math.pow(1 + SSDI_COLA, age - ptStartAge) : 1;
+          const ptCola   = ptIncome > 0 && age >= ptStartAge ? Math.pow(1 + inflation, age - ptStartAge) : 1;
           const ptAnnual = ptIncome > 0 && age >= ptStartAge && age <= ptEndAge ? ptIncome * 12 * ptCola : 0;
           cashFlow = ptAnnual - income * 0.62;
         } else {
           // SSI takes over at 67 with COLA
-          const ssiCola = Math.pow(1 + SSDI_COLA, age - 67);
+          const ssiCola = Math.pow(1 + inflation, age - 67);
           const infl = Math.pow(1 + inflation, Math.max(0, age - PERM_RETIRE));
           cashFlow = -income * 0.50 * infl + ssiMonthly * 12 * ssiCola;
         }
@@ -1633,13 +1633,13 @@ function renderDisability() {
     const ssdiActive = monthsDisabled >= ssdiStartMo && age < 67;
     if (ssdiActive) {
       const ssdiStartAge = disAge + ssdiStartMo / 12;
-      const ssdiCola = Math.pow(1 + SSDI_COLA, Math.max(0, age - ssdiStartAge));
+      const ssdiCola = Math.pow(1 + inflation, Math.max(0, age - ssdiStartAge));
       annualIncome += ssdiMonthly * 12 * ssdiCola;
     }
 
     // Part-time work — grows at 2.5% COLA from start age
     if (ptIncome > 0 && age >= ptStartAge && age <= ptEndAge) {
-      const ptCola = Math.pow(1 + SSDI_COLA, age - ptStartAge);
+      const ptCola = Math.pow(1 + inflation, age - ptStartAge);
       annualIncome += ptIncome * 12 * ptCola;
     }
 
@@ -1670,9 +1670,9 @@ function renderDisability() {
     if (age < 67) {
       const monthsDisAg = (age - disAge) * 12;
       const ssdiStartAge_ = disAge + ssdiStartMo / 12;
-      const ssdiCola  = Math.pow(1 + SSDI_COLA, Math.max(0, age - ssdiStartAge_));
+      const ssdiCola  = Math.pow(1 + inflation, Math.max(0, age - ssdiStartAge_));
       const ssdiAnnual = monthsDisAg >= ssdiStartMo ? ssdiMonthly * 12 * ssdiCola : 0;
-      const ptCola     = ptIncome > 0 && age >= ptStartAge ? Math.pow(1 + SSDI_COLA, age - ptStartAge) : 1;
+      const ptCola     = ptIncome > 0 && age >= ptStartAge ? Math.pow(1 + inflation, age - ptStartAge) : 1;
       const ptAnnual   = ptIncome > 0 && age >= ptStartAge && age <= ptEndAge ? ptIncome * 12 * ptCola : 0;
       return ssdiAnnual + ptAnnual - income * 0.62;
     }
@@ -1684,11 +1684,11 @@ function renderDisability() {
     if (age < disAge) return getSavingsForAge(age, savingsPhases);
     if (age < 67) {
       // No SSDI; spending from portfolio with any PT income (grows at 2.5%)
-      const ptCola   = ptIncome > 0 && age >= ptStartAge ? Math.pow(1 + SSDI_COLA, age - ptStartAge) : 1;
+      const ptCola   = ptIncome > 0 && age >= ptStartAge ? Math.pow(1 + inflation, age - ptStartAge) : 1;
       const ptAnnual = ptIncome > 0 && age >= ptStartAge && age <= ptEndAge ? ptIncome * 12 * ptCola : 0;
       return ptAnnual - income * 0.62;
     }
-    const ssiCola = Math.pow(1 + SSDI_COLA, age - 67); // SSI COLA from age 67
+    const ssiCola = Math.pow(1 + inflation, age - 67); // SSI COLA from age 67
     const infl = Math.pow(1 + inflation, Math.max(0, age - PERM_RETIRE));
     return -income * 0.55 * infl + ssiMonthly * 12 * ssiCola; // SSI takes over at 67 w/ COLA
   });
