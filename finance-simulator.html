@@ -561,9 +561,9 @@ hr { border: none; border-top: 1px solid #2a2d3a; margin: 16px 0; }
         <hr>
         <div class="section-label">Withdrawal Schedule</div>
         <div style="font-size:10px; color:#4b5563; margin-bottom:10px; line-height:1.6;">
-          Annual portfolio draw rate by age phase — used in the Monte Carlo simulation.<br>
-          Each tier = % of your portfolio at disability onset, inflation-adjusted each year.<br>
-          <strong style="color:#9ca3af;">Lower rate = more conservative spending = lower ruin risk.</strong>
+          Additional annual portfolio draw on top of your living expenses — used in the Monte Carlo.<br>
+          Models quality-of-life spending (care, adaptations, extras) funded from your portfolio.<br>
+          Each tier = % of portfolio at disability onset, inflation-adjusted · <strong style="color:#9ca3af;">Higher rate = faster depletion = higher ruin risk.</strong>
         </div>
         <div id="tier-list"></div>
         <button onclick="addWithdrawalTier()" style="width:100%; padding:7px; border-radius:6px; font-size:12px; font-weight:600; cursor:pointer; border:1px dashed #2a2d3a; background:transparent; color:#6b7280; margin-top:4px;" onmouseover="this.style.borderColor='#6ee7b7';this.style.color='#6ee7b7'" onmouseout="this.style.borderColor='#2a2d3a';this.style.color='#6b7280'">+ Add Age Tier</button>
@@ -901,8 +901,9 @@ function switchTab(name) {
   const idx = ['disability', 'settings'].indexOf(name);
   document.querySelectorAll('.tab')[idx].classList.add('active');
   document.getElementById('panel-' + name).classList.add('active');
-  // Re-render disability charts now that the canvas is visible and has real dimensions
-  if (name === 'disability') renderDisability();
+  // Defer render until after the browser reflows the newly visible panel — otherwise
+  // canvas dimensions are still 0 and Chart.js draws nothing.
+  if (name === 'disability') requestAnimationFrame(() => renderDisability());
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -1070,9 +1071,11 @@ function runDisabilityScenarioMC(scenario, disAge, stdMo, income, netWorth, expR
         }
 
       } else if (scenario === 'perm') {
-        // Permanent: LTD ends at 65 (flat), SSDI runs to 67 w/ COLA, then converts to SS retirement
-        // Spending is governed by the withdrawal schedule (tiers), not a fixed expense line.
-        // This lets the withdrawal rate directly affect MC results — lower rate = more conservative.
+        // Permanent: LTD ends at 65 (flat), SSDI runs to 67 w/ COLA, then converts to SS retirement.
+        // Cash flow = benefits_income - living_expenses - portfolio_draw
+        // The withdrawal schedule is an ADDITIONAL annual portfolio draw on top of the income/expense gap.
+        // It models quality-of-life spending (care adaptations, equipment, etc.) funded from the portfolio.
+        // Higher rate = more drawn each year = faster depletion = higher ruin risk.
         if (age < disAge) {
           cashFlow = getSavingsForAge(age, savingsPhases);
         } else {
@@ -1087,17 +1090,19 @@ function runDisabilityScenarioMC(scenario, disAge, stdMo, income, netWorth, expR
           const ptCola      = ptIncome > 0 && age >= ptStartAge ? Math.pow(1 + inflation, age - ptStartAge) : 1;
           const ptAnnual    = ptIncome > 0 && age >= ptStartAge && age <= ptEndAge ? ptIncome * 12 * ptCola : 0;
           const totalIncome = ltdAnnual + ssdiAnnual + ssAnnual + ptAnnual;
-          // Annual spend: withdrawal schedule drives MC spending; fall back to fixed expenses if no tiers.
-          // Tier lookup: match age to tier range; use first tier for ages before tiers start, last for after.
-          const annualSpend = (() => {
-            if (!tiers || tiers.length === 0 || !initialPort) return disAnnualExpenses;
-            const inflFactor = Math.pow(1 + inflation, Math.max(0, age - disAge));
+          // Expenses: inflation-adjusted from PERM_RETIRE for post-67, flat before
+          const expInfl     = age >= 67 ? Math.pow(1 + inflation, Math.max(0, age - PERM_RETIRE)) : 1;
+          const totalExpenses = disAnnualExpenses * expInfl;
+          // Additional portfolio draw from withdrawal schedule (on top of the income/expense gap)
+          const annualDraw = (() => {
+            if (!tiers || tiers.length === 0 || !initialPort) return 0;
+            const inflFactor = Math.pow(1 + inflation, age - disAge);
             const sorted = [...tiers].sort((a, b) => a.from - b.from);
             const tier = sorted.find(t => age >= t.from && age <= t.to)
                       || (age < sorted[0].from ? sorted[0] : sorted[sorted.length - 1]);
             return initialPort * (tier.rate / 100) * inflFactor;
           })();
-          cashFlow = totalIncome - annualSpend;
+          cashFlow = totalIncome - totalExpenses - annualDraw;
         }
 
       } else if (scenario === 'ssdionly') {
