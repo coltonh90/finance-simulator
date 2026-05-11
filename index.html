@@ -214,8 +214,7 @@ hr { border: none; border-top: 1px solid #2a2d3a; margin: 16px 0; }
 
 <div class="tabs">
   <div class="tab active" onclick="switchTab('overview')">Overview &amp; FIRE</div>
-  <div class="tab" onclick="switchTab('montecarlo')">Monte Carlo</div>
-  <div class="tab" onclick="switchTab('disability')">Disability Scenarios</div>
+  <div class="tab" onclick="switchTab('disability')">Disability &amp; Monte Carlo</div>
   <div class="tab" onclick="switchTab('states')">State Comparison</div>
 </div>
 
@@ -356,44 +355,33 @@ hr { border: none; border-top: 1px solid #2a2d3a; margin: 16px 0; }
     </div>
 
     <!-- ===== MONTE CARLO TAB ===== -->
-    <div class="tab-panel" id="panel-montecarlo">
-      <div class="cards">
+    <!-- ===== DISABILITY + MC TAB ===== -->
+    <div class="tab-panel" id="panel-disability">
+
+      <!-- Baseline MC summary cards -->
+      <div class="cards" style="margin-bottom:18px;">
         <div class="card">
           <div class="val" id="mc-p50">—</div>
-          <div class="lbl">Median at Retirement</div>
-          <div class="sub">50th percentile portfolio</div>
+          <div class="lbl">Baseline Median at Retirement</div>
+          <div class="sub">50th percentile — no disability</div>
         </div>
         <div class="card">
           <div class="val warn" id="mc-p10">—</div>
           <div class="lbl">Bad Scenario (10th %ile)</div>
-          <div class="sub">Only 10% of outcomes are worse</div>
+          <div class="sub">Only 10% of baseline outcomes are worse</div>
         </div>
         <div class="card">
           <div class="val" id="mc-p90">—</div>
           <div class="lbl">Great Scenario (90th %ile)</div>
-          <div class="sub">Only 10% of outcomes are better</div>
+          <div class="sub">Only 10% of baseline outcomes are better</div>
         </div>
         <div class="card">
           <div class="val" id="mc-ruin">—</div>
-          <div class="lbl">Ruin Rate</div>
-          <div class="sub">Sims where portfolio hits $0</div>
+          <div class="lbl">Baseline Ruin Rate</div>
+          <div class="sub" id="mc-ruin-sub">Sims where portfolio hits $0</div>
         </div>
       </div>
 
-      <div class="chart-box">
-        <h3>Full Monte Carlo Fan — All 1,000 Simulation Paths</h3>
-        <canvas id="chart-mc" height="130"></canvas>
-      </div>
-
-      <div class="chart-box">
-        <h3>Distribution of Portfolio Value at Your Retirement Age</h3>
-        <div class="chart-sub">How spread out your outcomes are — wider = more uncertainty.</div>
-        <canvas id="chart-hist" height="110"></canvas>
-      </div>
-    </div>
-
-    <!-- ===== DISABILITY TAB ===== -->
-    <div class="tab-panel" id="panel-disability">
       <div class="info-box">
         Model what happens to your financial trajectory if disability strikes. STD and LTD replace <strong>60% of your salary</strong>. SSDI is estimated from your earnings record. SSI is means-tested — your current net worth likely disqualifies you, but it's shown for completeness.
       </div>
@@ -539,7 +527,7 @@ hr { border: none; border-top: 1px solid #2a2d3a; margin: 16px 0; }
         <div class="card">
           <div class="val" id="dmc-base-p50">—</div>
           <div class="lbl">Baseline Median</div>
-          <div class="sub">No disability · age 90</div>
+          <div class="sub" id="dmc-base-sub">No disability · baseline</div>
         </div>
         <div class="card">
           <div class="val" style="color:#60a5fa;" id="dmc-std-p50">—</div>
@@ -567,7 +555,7 @@ hr { border: none; border-top: 1px solid #2a2d3a; margin: 16px 0; }
       <div class="two-col">
         <div class="chart-box">
           <h3>Ruin Rate by Scenario</h3>
-          <div class="chart-sub">% of 1,000 sims where portfolio hits $0 before age 90</div>
+          <div class="chart-sub" id="dis-ruin-sub">% of 1,000 sims where portfolio hits $0 before life expectancy</div>
           <canvas id="chart-dis-ruin" height="180"></canvas>
         </div>
         <div class="chart-box">
@@ -955,7 +943,7 @@ function onInput() {
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.tab-panel').forEach(t => t.classList.remove('active'));
-  const idx = ['overview', 'montecarlo', 'disability', 'states'].indexOf(name);
+  const idx = ['overview', 'disability', 'states'].indexOf(name);
   document.querySelectorAll('.tab')[idx].classList.add('active');
   document.getElementById('panel-' + name).classList.add('active');
 }
@@ -967,7 +955,7 @@ function runAll() {
   const p = getP_();
   simData = runSims(p);
   renderOverview(p, simData);
-  renderMonteCarlo(p, simData);
+  renderDisabilityBaseMC(p, simData);
   renderDisability();
   renderStates(p);
 
@@ -1060,65 +1048,21 @@ function renderOverview(p, sim) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// MONTE CARLO TAB
+// BASELINE MC STAT CARDS (shown at top of Disability + MC tab)
 // ─────────────────────────────────────────────────────────────
-function renderMonteCarlo(p, sim) {
+function renderDisabilityBaseMC(p, sim) {
   const retireIdx = p.retireAge - CURRENT_AGE;
   const atRetire = sim.trajectories.map(t => t[retireIdx]).sort((a, b) => a - b);
 
   document.getElementById('mc-p50').textContent = fmt(getP(atRetire, 50));
   document.getElementById('mc-p10').textContent = fmt(getP(atRetire, 10));
   document.getElementById('mc-p90').textContent = fmt(getP(atRetire, 90));
+
   const ruinRate = sim.ruinCount / N_SIMS;
   const ruinEl = document.getElementById('mc-ruin');
   ruinEl.textContent = pct(ruinRate);
   ruinEl.className = 'val' + (ruinRate < 0.10 ? '' : ruinRate < 0.20 ? ' warn' : ' bad');
-
-  // Fan chart with 7 bands
-  const bands = getPctBands(sim.trajectories, [5, 10, 25, 50, 75, 90, 95]);
-  const labels = Array.from({ length: p.lifeExp - CURRENT_AGE + 1 }, (_, i) => CURRENT_AGE + i);
-
-  makeChart('mc', 'chart-mc', 'line', {
-    labels,
-    datasets: [
-      { label: '95th', data: bands[95], borderColor: 'rgba(110,231,183,0.15)', borderWidth: 1, fill: '+1', backgroundColor: 'rgba(110,231,183,0.04)', pointRadius: 0 },
-      { label: '90th', data: bands[90], borderColor: 'rgba(110,231,183,0.3)', borderWidth: 1, fill: '+1', backgroundColor: 'rgba(110,231,183,0.07)', pointRadius: 0 },
-      { label: '75th', data: bands[75], borderColor: 'rgba(110,231,183,0.55)', borderWidth: 1.5, fill: '+1', backgroundColor: 'rgba(110,231,183,0.1)', pointRadius: 0 },
-      { label: 'Median', data: bands[50], borderColor: '#6ee7b7', borderWidth: 2.5, fill: '+1', backgroundColor: 'rgba(110,231,183,0.1)', pointRadius: 0 },
-      { label: '25th', data: bands[25], borderColor: 'rgba(251,191,36,0.55)', borderWidth: 1.5, fill: '+1', backgroundColor: 'rgba(251,191,36,0.07)', pointRadius: 0 },
-      { label: '10th', data: bands[10], borderColor: 'rgba(248,113,113,0.5)', borderWidth: 1, fill: '+1', backgroundColor: 'rgba(248,113,113,0.06)', pointRadius: 0 },
-      { label: '5th', data: bands[5], borderColor: 'rgba(248,113,113,0.2)', borderWidth: 1, fill: false, pointRadius: 0 },
-    ]
-  }, baseOpts());
-
-  // Histogram at retirement
-  const min = atRetire[0], max = atRetire[atRetire.length - 1];
-  const bins = 24;
-  const binSize = (max - min) / bins;
-  const counts = Array(bins).fill(0);
-  atRetire.forEach(v => {
-    const b = Math.min(Math.floor((v - min) / binSize), bins - 1);
-    counts[b]++;
-  });
-
-  makeChart('hist', 'chart-hist', 'bar', {
-    labels: counts.map((_, i) => fmt(min + i * binSize + binSize / 2)),
-    datasets: [{
-      label: '# of Simulations',
-      data: counts,
-      backgroundColor: 'rgba(110,231,183,0.5)',
-      borderColor: '#6ee7b7',
-      borderWidth: 1,
-      borderRadius: 3,
-    }]
-  }, {
-    ...baseOpts(false),
-    plugins: { legend: { display: false } },
-    scales: {
-      x: { ticks: { color: TICK_COLOR, maxRotation: 45, font: { size: 10 }, callback: (_, i) => i % 3 === 0 ? fmt(min + i * binSize) : '' }, grid: { display: false } },
-      y: { ticks: { color: TICK_COLOR }, grid: { color: GRID_COLOR }, title: { display: true, text: '# Simulations', color: TICK_COLOR, font: { size: 11 } } }
-    }
-  });
+  document.getElementById('mc-ruin-sub').textContent = `% of sims portfolio hits $0 before age ${p.lifeExp}`;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -1260,7 +1204,11 @@ function renderDisabilityMC() {
   const sims  = {};
   keys.forEach(k => { sims[k] = runDisabilityScenarioMC(k, ...args); });
 
-  // Median at age 90
+  // Update dynamic sub-text labels
+  document.getElementById('dmc-base-sub').textContent = `No disability · to age ${lifeExp}`;
+  document.getElementById('dis-ruin-sub').textContent = `% of 1,000 sims where portfolio hits $0 before age ${lifeExp}`;
+
+  // Median at life expectancy
   const medianAtEnd = k => {
     const vals = sims[k].trajectories.map(t => t[t.length - 1]).sort((a, b) => a - b);
     return vals[Math.floor(0.5 * vals.length)];
