@@ -213,91 +213,13 @@ hr { border: none; border-top: 1px solid #2a2d3a; margin: 16px 0; }
 </div>
 
 <div class="tabs">
-  <div class="tab active" onclick="switchTab('overview')">Overview &amp; FIRE</div>
+  <div class="tab active" onclick="switchTab('overview')">Dashboard</div>
   <div class="tab" onclick="switchTab('disability')">Disability &amp; Monte Carlo</div>
   <div class="tab" onclick="switchTab('states')">State Comparison</div>
+  <div class="tab" onclick="switchTab('settings')">Settings</div>
 </div>
 
 <div class="layout">
-  <!-- SIDEBAR -->
-  <div class="sidebar">
-    <div class="section-label">Your Profile</div>
-
-    <div class="input-group">
-      <label>Annual Income ($)</label>
-      <input type="number" id="income" value="94760" oninput="onInput()">
-    </div>
-    <div class="input-group">
-      <label>Current Net Worth ($)</label>
-      <input type="number" id="networth" value="170000" oninput="onInput()">
-    </div>
-    <div style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1.2px; color:#4b5563; margin-bottom:8px; margin-top:4px;">Investment Deposits / Month</div>
-    <div style="font-size:10px; color:#4b5563; margin-bottom:10px;">Monthly contributions across 401k, brokerage, IRA, HSA, or any investment account — by age phase.</div>
-    <div id="phase-list"></div>
-    <button onclick="addSavingsPhase()" style="width:100%; padding:7px; border-radius:6px; font-size:12px; font-weight:600; cursor:pointer; border:1px dashed #2a2d3a; background:transparent; color:#6b7280; margin-bottom:14px;" onmouseover="this.style.borderColor='#6ee7b7';this.style.color='#6ee7b7'" onmouseout="this.style.borderColor='#2a2d3a';this.style.color='#6b7280'">+ Add Phase</button>
-    <div class="input-group">
-      <label>Target Retirement Age</label>
-      <input type="number" id="retireAge" value="55" min="40" max="75" oninput="onInput()">
-    </div>
-    <div class="input-group">
-      <label style="justify-content:space-between;">Suggested Retirement Spend <span id="spend-pct" style="color:#6b7280;font-weight:400;"></span></label>
-      <div id="spend-display" style="background:#1a1d27; border:1px solid #2a2d3a; border-radius:7px; color:#6ee7b7; padding:7px 10px; font-size:14px; font-weight:700;">—</div>
-      <div style="font-size:10px; color:#4b5563; margin-top:5px; line-height:1.5;">Income minus monthly deposits = implied lifestyle cost. Drives FI number.</div>
-    </div>
-
-    <hr>
-    <div class="section-label">Account Balances</div>
-    <div class="input-group">
-      <label>401k / IRA ($)</label>
-      <input type="number" id="bal401k" value="80000" oninput="onInput()">
-    </div>
-    <div class="input-group">
-      <label>Brokerage ($)</label>
-      <input type="number" id="balBrok" value="40000" oninput="onInput()">
-    </div>
-    <div class="input-group">
-      <label>Real Estate Equity ($)</label>
-      <input type="number" id="balRE" value="30000" oninput="onInput()">
-    </div>
-    <div class="input-group">
-      <label>Cash / HYSA ($)</label>
-      <input type="number" id="balCash" value="20000" oninput="onInput()">
-    </div>
-
-    <hr>
-    <div class="section-label">Market Assumptions</div>
-    <div class="input-group">
-      <label>Expected Return <span class="val" id="ret-val">7.0%</span></label>
-      <input type="range" id="expReturn" min="3" max="12" step="0.5" value="7" oninput="onInput()">
-    </div>
-    <div class="input-group">
-      <label>Volatility (Std Dev) <span class="val" id="vol-val">15%</span></label>
-      <input type="range" id="volatility" min="5" max="30" step="1" value="15" oninput="onInput()">
-    </div>
-    <div class="input-group">
-      <label>Inflation <span class="val" id="inf-val">3.0%</span></label>
-      <input type="range" id="inflation" min="1" max="7" step="0.5" value="3" oninput="onInput()">
-    </div>
-    <hr>
-    <div class="section-label">Life Expectancy</div>
-    <div class="input-group">
-      <label>Life Expectancy (age)</label>
-      <input type="number" id="lifeExp" value="87" min="70" max="105" oninput="onInput()">
-    </div>
-    <div style="font-size:10px; color:#4b5563; margin-bottom:12px; line-height:1.5;">
-      Male median ~81 · 90th %ile ~95 at age 35.<br>
-      Use 95–100 for conservative planning.
-    </div>
-
-    <hr>
-    <div class="section-label">Withdrawal Schedule</div>
-    <div style="font-size:10px; color:#4b5563; margin-bottom:10px;">Set spending rate by life phase. Each tier = % of initial retirement portfolio, inflation-adjusted.</div>
-    <div id="tier-list"></div>
-    <button onclick="addWithdrawalTier()" style="width:100%; padding:7px; border-radius:6px; font-size:12px; font-weight:600; cursor:pointer; border:1px dashed #2a2d3a; background:transparent; color:#6b7280; margin-top:4px;" onmouseover="this.style.borderColor='#6ee7b7';this.style.color='#6ee7b7'" onmouseout="this.style.borderColor='#2a2d3a';this.style.color='#6b7280'">+ Add Age Tier</button>
-
-    <button class="btn" onclick="runAll()" style="margin-top:14px;">Run Simulation</button>
-  </div>
-
   <!-- MAIN CONTENT -->
   <div class="content">
 
@@ -337,7 +259,7 @@ hr { border: none; border-top: 1px solid #2a2d3a; margin: 16px 0; }
       </div>
 
       <div class="chart-box">
-        <h3>Wealth Trajectory to Age 90 — Percentile Fan (1,000 Simulations)</h3>
+        <h3 id="ov-chart-title">Wealth Trajectory — Percentile Fan (1,000 Simulations)</h3>
         <div class="chart-sub">Green band = 25th–75th percentile. Dashed lines = 10th and 90th.</div>
         <canvas id="chart-overview" height="120"></canvas>
       </div>
@@ -351,6 +273,51 @@ hr { border: none; border-top: 1px solid #2a2d3a; margin: 16px 0; }
           <h3>Savings Rate Sensitivity</h3>
           <div class="chart-sub">FI year at different savings rates</div>
           <canvas id="chart-sensitivity" height="180"></canvas>
+        </div>
+      </div>
+
+      <!-- Disability scenario highlights -->
+      <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1.2px; color:#4b5563; margin: 20px 0 12px;">Disability Risk — Median Portfolio at Life Expectancy</div>
+      <div class="cards">
+        <div class="card">
+          <div class="val" id="dash-base-p50">—</div>
+          <div class="lbl">No Disability (Baseline)</div>
+          <div class="sub">Healthy trajectory median</div>
+        </div>
+        <div class="card">
+          <div class="val" style="color:#60a5fa;" id="dash-std-p50">—</div>
+          <div class="lbl">STD → Full Recovery</div>
+          <div class="sub">Temporary hit, then back on track</div>
+        </div>
+        <div class="card">
+          <div class="val warn" id="dash-perm-p50">—</div>
+          <div class="lbl">Permanent LTD + SSDI</div>
+          <div class="sub">Disability onset = effective retirement</div>
+        </div>
+        <div class="card">
+          <div class="val bad" id="dash-ssdi-p50">—</div>
+          <div class="lbl">SSDI Only (no LTD)</div>
+          <div class="sub">Worst case without employer coverage</div>
+        </div>
+      </div>
+
+      <!-- State comparison mini-summary -->
+      <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1.2px; color:#4b5563; margin: 20px 0 12px;">State Tax Comparison — Annual Take-Home</div>
+      <div class="cards" style="grid-template-columns: repeat(3, 1fr);">
+        <div class="card">
+          <div class="val" id="dash-ne-th">—</div>
+          <div class="lbl">🌽 Nebraska</div>
+          <div class="sub">~4.45% effective income tax</div>
+        </div>
+        <div class="card">
+          <div class="val" id="dash-az-th">—</div>
+          <div class="lbl">🌵 Arizona</div>
+          <div class="sub">2.5% flat income tax</div>
+        </div>
+        <div class="card">
+          <div class="val" id="dash-fl-th">—</div>
+          <div class="lbl">🌴 Florida</div>
+          <div class="sub">No state income tax</div>
         </div>
       </div>
     </div>
@@ -391,11 +358,11 @@ hr { border: none; border-top: 1px solid #2a2d3a; margin: 16px 0; }
       <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap:12px; margin-bottom:14px;">
         <div class="input-group" style="margin:0;">
           <label>Disability Onset Age</label>
-          <input type="number" id="disAge" value="45" min="36" max="64" oninput="renderDisability()">
+          <input type="number" id="disAge" value="45" min="36" max="64" oninput="onDisInput()">
         </div>
         <div class="input-group" style="margin:0;">
           <label>STD Duration (months)</label>
-          <input type="number" id="stdMonths" value="6" min="1" max="12" oninput="renderDisability()">
+          <input type="number" id="stdMonths" value="6" min="1" max="12" oninput="onDisInput()">
         </div>
       </div>
 
@@ -408,11 +375,11 @@ hr { border: none; border-top: 1px solid #2a2d3a; margin: 16px 0; }
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px;">
             <div class="input-group" style="margin:0;">
               <label style="font-size:11px;">Monthly Benefit ($)</label>
-              <input type="number" id="stdBenefit" value="4738" oninput="renderDisability()" style="font-size:12px; padding:5px 8px;">
+              <input type="number" id="stdBenefit" value="4738" oninput="onDisInput()" style="font-size:12px; padding:5px 8px;">
             </div>
             <div class="input-group" style="margin:0;">
               <label style="font-size:11px;">Starts (mo after onset)</label>
-              <input type="number" id="stdStartMo" value="0" min="0" max="3" oninput="renderDisability()" style="font-size:12px; padding:5px 8px;">
+              <input type="number" id="stdStartMo" value="0" min="0" max="3" oninput="onDisInput()" style="font-size:12px; padding:5px 8px;">
             </div>
           </div>
           <p>Duration: <strong id="d-std-dur">6 months</strong></p>
@@ -429,18 +396,18 @@ hr { border: none; border-top: 1px solid #2a2d3a; margin: 16px 0; }
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px;">
             <div class="input-group" style="margin:0;">
               <label style="font-size:11px;">Monthly Benefit ($)</label>
-              <input type="number" id="ltdBenefit" value="4738" oninput="renderDisability()" style="font-size:12px; padding:5px 8px;">
+              <input type="number" id="ltdBenefit" value="4738" oninput="onDisInput()" style="font-size:12px; padding:5px 8px;">
             </div>
             <div class="input-group" style="margin:0;">
               <label style="font-size:11px;">Elim. period (mo after STD)</label>
-              <input type="number" id="ltdElimMo" value="0" min="0" max="6" oninput="renderDisability()" style="font-size:12px; padding:5px 8px;">
+              <input type="number" id="ltdElimMo" value="0" min="0" max="6" oninput="onDisInput()" style="font-size:12px; padding:5px 8px;">
             </div>
           </div>
           <p>Covers to: <strong>Age 65 (or recovery)</strong></p>
           <p>Monthly benefit: <strong id="d-ltd-mo">—</strong></p>
           <p>Gap vs full salary: <strong id="d-ltd-gap">—</strong>/mo</p>
           <div style="display:flex; align-items:center; gap:6px; margin:8px 0 4px;">
-            <input type="checkbox" id="ssdiOffsetsLtd" checked onchange="renderDisability()" style="accent-color:#6ee7b7; width:14px; height:14px;">
+            <input type="checkbox" id="ssdiOffsetsLtd" checked onchange="onDisInput()" style="accent-color:#6ee7b7; width:14px; height:14px;">
             <label for="ssdiOffsetsLtd" style="font-size:11px; color:#9ca3af; cursor:pointer;">SSDI offsets LTD (insurer deducts SSDI from LTD)</label>
           </div>
           <div class="impact-val bad" id="d-ltd-impact">—</div>
@@ -453,11 +420,11 @@ hr { border: none; border-top: 1px solid #2a2d3a; margin: 16px 0; }
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px;">
             <div class="input-group" style="margin:0;">
               <label style="font-size:11px;">Monthly Benefit ($)</label>
-              <input type="number" id="ssdiBenefit" value="1450" oninput="renderDisability()" style="font-size:12px; padding:5px 8px;">
+              <input type="number" id="ssdiBenefit" value="1450" oninput="onDisInput()" style="font-size:12px; padding:5px 8px;">
             </div>
             <div class="input-group" style="margin:0;">
               <label style="font-size:11px;">Starts (mo after onset)</label>
-              <input type="number" id="ssdiStartMo" value="5" min="0" max="24" oninput="renderDisability()" style="font-size:12px; padding:5px 8px;">
+              <input type="number" id="ssdiStartMo" value="5" min="0" max="24" oninput="onDisInput()" style="font-size:12px; padding:5px 8px;">
             </div>
           </div>
           <p>Medicare: <strong>24 months after award</strong></p>
@@ -473,11 +440,11 @@ hr { border: none; border-top: 1px solid #2a2d3a; margin: 16px 0; }
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px;">
             <div class="input-group" style="margin:0;">
               <label style="font-size:11px;">Monthly Benefit ($)</label>
-              <input type="number" id="ssiBenefit" value="967" oninput="renderDisability()" style="font-size:12px; padding:5px 8px;">
+              <input type="number" id="ssiBenefit" value="967" oninput="onDisInput()" style="font-size:12px; padding:5px 8px;">
             </div>
             <div class="input-group" style="margin:0;">
               <label style="font-size:11px;">Starts (mo after onset)</label>
-              <input type="number" id="ssiStartMo" value="0" min="0" max="24" oninput="renderDisability()" style="font-size:12px; padding:5px 8px;">
+              <input type="number" id="ssiStartMo" value="0" min="0" max="24" oninput="onDisInput()" style="font-size:12px; padding:5px 8px;">
             </div>
           </div>
           <p>Asset limit: <strong>$2,000 (single)</strong></p>
@@ -494,15 +461,15 @@ hr { border: none; border-top: 1px solid #2a2d3a; margin: 16px 0; }
         <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap:10px; margin-bottom:10px;">
           <div class="input-group" style="margin:0;">
             <label style="font-size:11px;">Monthly Income ($)</label>
-            <input type="number" id="ptIncome" value="0" min="0" placeholder="0 = not working" oninput="renderDisability()" style="font-size:12px; padding:5px 8px;">
+            <input type="number" id="ptIncome" value="0" min="0" placeholder="0 = not working" oninput="onDisInput()" style="font-size:12px; padding:5px 8px;">
           </div>
           <div class="input-group" style="margin:0;">
             <label style="font-size:11px;">Start Age</label>
-            <input type="number" id="ptStartAge" value="47" min="36" max="70" oninput="renderDisability()" style="font-size:12px; padding:5px 8px;">
+            <input type="number" id="ptStartAge" value="47" min="36" max="70" oninput="onDisInput()" style="font-size:12px; padding:5px 8px;">
           </div>
           <div class="input-group" style="margin:0;">
             <label style="font-size:11px;">End Age</label>
-            <input type="number" id="ptEndAge" value="55" min="36" max="70" oninput="renderDisability()" style="font-size:12px; padding:5px 8px;">
+            <input type="number" id="ptEndAge" value="55" min="36" max="70" oninput="onDisInput()" style="font-size:12px; padding:5px 8px;">
           </div>
         </div>
         <div style="display:flex; gap:20px; flex-wrap:wrap;">
@@ -621,6 +588,87 @@ hr { border: none; border-top: 1px solid #2a2d3a; margin: 16px 0; }
           </thead>
           <tbody id="state-tbody"></tbody>
         </table>
+      </div>
+    </div>
+
+    <!-- ===== SETTINGS TAB ===== -->
+    <div class="tab-panel" id="panel-settings">
+      <div style="max-width: 560px; margin: 0 auto;">
+        <div class="section-label">Your Profile</div>
+
+        <div class="input-group">
+          <label>Annual Income ($)</label>
+          <input type="number" id="income" value="94760" oninput="onInput()">
+        </div>
+        <div class="input-group">
+          <label>Current Net Worth ($)</label>
+          <input type="number" id="networth" value="170000" oninput="onInput()">
+        </div>
+        <div style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1.2px; color:#4b5563; margin-bottom:8px; margin-top:4px;">Investment Deposits / Month</div>
+        <div style="font-size:10px; color:#4b5563; margin-bottom:10px;">Monthly contributions across 401k, brokerage, IRA, HSA, or any investment account — by age phase.</div>
+        <div id="phase-list"></div>
+        <button onclick="addSavingsPhase()" style="width:100%; padding:7px; border-radius:6px; font-size:12px; font-weight:600; cursor:pointer; border:1px dashed #2a2d3a; background:transparent; color:#6b7280; margin-bottom:14px;" onmouseover="this.style.borderColor='#6ee7b7';this.style.color='#6ee7b7'" onmouseout="this.style.borderColor='#2a2d3a';this.style.color='#6b7280'">+ Add Phase</button>
+        <div class="input-group">
+          <label>Target Retirement Age</label>
+          <input type="number" id="retireAge" value="55" min="40" max="75" oninput="onInput()">
+        </div>
+        <div class="input-group">
+          <label style="justify-content:space-between;">Suggested Retirement Spend <span id="spend-pct" style="color:#6b7280;font-weight:400;"></span></label>
+          <div id="spend-display" style="background:#1a1d27; border:1px solid #2a2d3a; border-radius:7px; color:#6ee7b7; padding:7px 10px; font-size:14px; font-weight:700;">—</div>
+          <div style="font-size:10px; color:#4b5563; margin-top:5px; line-height:1.5;">Income minus monthly deposits = implied lifestyle cost. Drives FI number.</div>
+        </div>
+
+        <hr>
+        <div class="section-label">Account Balances</div>
+        <div class="input-group">
+          <label>401k / IRA ($)</label>
+          <input type="number" id="bal401k" value="80000" oninput="onInput()">
+        </div>
+        <div class="input-group">
+          <label>Brokerage ($)</label>
+          <input type="number" id="balBrok" value="40000" oninput="onInput()">
+        </div>
+        <div class="input-group">
+          <label>Real Estate Equity ($)</label>
+          <input type="number" id="balRE" value="30000" oninput="onInput()">
+        </div>
+        <div class="input-group">
+          <label>Cash / HYSA ($)</label>
+          <input type="number" id="balCash" value="20000" oninput="onInput()">
+        </div>
+
+        <hr>
+        <div class="section-label">Market Assumptions</div>
+        <div class="input-group">
+          <label>Expected Return <span class="val" id="ret-val">7.0%</span></label>
+          <input type="range" id="expReturn" min="3" max="12" step="0.5" value="7" oninput="onInput()">
+        </div>
+        <div class="input-group">
+          <label>Volatility (Std Dev) <span class="val" id="vol-val">15%</span></label>
+          <input type="range" id="volatility" min="5" max="30" step="1" value="15" oninput="onInput()">
+        </div>
+        <div class="input-group">
+          <label>Inflation <span class="val" id="inf-val">3.0%</span></label>
+          <input type="range" id="inflation" min="1" max="7" step="0.5" value="3" oninput="onInput()">
+        </div>
+        <hr>
+        <div class="section-label">Life Expectancy</div>
+        <div class="input-group">
+          <label>Life Expectancy (age)</label>
+          <input type="number" id="lifeExp" value="87" min="70" max="105" oninput="onInput()">
+        </div>
+        <div style="font-size:10px; color:#4b5563; margin-bottom:12px; line-height:1.5;">
+          Male median ~81 · 90th %ile ~95 at age 35.<br>
+          Use 95–100 for conservative planning.
+        </div>
+
+        <hr>
+        <div class="section-label">Withdrawal Schedule</div>
+        <div style="font-size:10px; color:#4b5563; margin-bottom:10px;">Set spending rate by life phase. Each tier = % of initial retirement portfolio, inflation-adjusted.</div>
+        <div id="tier-list"></div>
+        <button onclick="addWithdrawalTier()" style="width:100%; padding:7px; border-radius:6px; font-size:12px; font-weight:600; cursor:pointer; border:1px dashed #2a2d3a; background:transparent; color:#6b7280; margin-top:4px;" onmouseover="this.style.borderColor='#6ee7b7';this.style.color='#6ee7b7'" onmouseout="this.style.borderColor='#2a2d3a';this.style.color='#6b7280'">+ Add Age Tier</button>
+
+        <button class="btn" onclick="runAll()" style="margin-top:14px;">Run Simulation</button>
       </div>
     </div>
 
@@ -945,7 +993,7 @@ function onInput() {
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.tab-panel').forEach(t => t.classList.remove('active'));
-  const idx = ['overview', 'disability', 'states'].indexOf(name);
+  const idx = ['overview', 'disability', 'states', 'settings'].indexOf(name);
   document.querySelectorAll('.tab')[idx].classList.add('active');
   document.getElementById('panel-' + name).classList.add('active');
 }
@@ -974,6 +1022,7 @@ function renderOverview(p, sim) {
   const successRate = (N_SIMS - sim.ruinCount) / N_SIMS;
   const fiAge = estimateFiAge(p);
 
+  document.getElementById('ov-chart-title').textContent = `Wealth Trajectory to Age ${p.lifeExp} — Percentile Fan (1,000 Simulations)`;
   document.getElementById('ov-fi-num').textContent = fmt(fiNumber);
   document.getElementById('ov-fi-year').textContent = fiAge ? (BIRTH_YEAR + fiAge).toString() : '2060+';
   document.getElementById('ov-fi-sub').textContent = fiAge ? `${fiAge - CURRENT_AGE} yrs away · to age ${p.lifeExp}` : 'Increase savings rate';
@@ -1233,6 +1282,12 @@ function renderDisabilityMC() {
   document.getElementById('dmc-perm-p50').textContent  = fmt(medianAtEnd('perm'));
   document.getElementById('dmc-ssdi-p50').textContent  = fmt(medianAtEnd('ssdionly'));
 
+  // Also update dashboard highlights
+  document.getElementById('dash-base-p50').textContent  = fmt(medianAtEnd('baseline'));
+  document.getElementById('dash-std-p50').textContent   = fmt(medianAtEnd('std'));
+  document.getElementById('dash-perm-p50').textContent  = fmt(medianAtEnd('perm'));
+  document.getElementById('dash-ssdi-p50').textContent  = fmt(medianAtEnd('ssdionly'));
+
   const labels = Array.from({ length: lifeExp - CURRENT_AGE + 1 }, (_, i) => CURRENT_AGE + i);
 
   const palette = {
@@ -1321,6 +1376,11 @@ function renderDisabilityMC() {
       y: { ticks: { color: TICK_COLOR }, grid: { color: GRID_COLOR }, title: { display: true, text: '# Simulations', color: TICK_COLOR, font: { size: 11 } } }
     }
   });
+}
+
+function onDisInput() {
+  renderDisability();
+  saveState();
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -1541,6 +1601,9 @@ function renderStates(p) {
   document.getElementById('st-ne-takehome').textContent = fmt(takeHome('Nebraska'));
   document.getElementById('st-az-takehome').textContent = fmt(takeHome('Arizona'));
   document.getElementById('st-fl-takehome').textContent = fmt(takeHome('Florida'));
+  document.getElementById('dash-ne-th').textContent = fmt(takeHome('Nebraska'));
+  document.getElementById('dash-az-th').textContent = fmt(takeHome('Arizona'));
+  document.getElementById('dash-fl-th').textContent = fmt(takeHome('Florida'));
 
   // Bar: state tax
   makeChart('state-tax', 'chart-state-tax', 'bar', {
@@ -1644,6 +1707,7 @@ const LS_KEY = 'finSim_v2';
 
 function saveState() {
   const ids = ['income','networth','retireAge','expReturn','volatility','inflation','lifeExp',
+                'bal401k','balBrok','balRE','balCash',
                 'disAge','stdMonths','stdBenefit','stdStartMo','ltdBenefit','ltdElimMo',
                 'ssdiBenefit','ssdiStartMo','ssiBenefit','ssiStartMo','ptIncome','ptStartAge','ptEndAge'];
   const state = {};
@@ -1664,6 +1728,7 @@ function loadState() {
     if (!raw) return;
     const state = JSON.parse(raw);
     const ids = ['income','networth','retireAge','expReturn','volatility','inflation','lifeExp',
+                  'bal401k','balBrok','balRE','balCash',
                   'disAge','stdMonths','stdBenefit','stdStartMo','ltdBenefit','ltdElimMo',
                   'ssdiBenefit','ssdiStartMo','ssiBenefit','ssiStartMo','ptIncome','ptStartAge','ptEndAge'];
     ids.forEach(id => {
