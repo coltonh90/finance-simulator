@@ -213,9 +213,7 @@ hr { border: none; border-top: 1px solid #2a2d3a; margin: 16px 0; }
 </div>
 
 <div class="tabs">
-  <div class="tab active" onclick="switchTab('overview')">Dashboard</div>
-  <div class="tab" onclick="switchTab('disability')">Disability &amp; Monte Carlo</div>
-
+  <div class="tab active" onclick="switchTab('disability')">Disability &amp; Monte Carlo</div>
   <div class="tab" onclick="switchTab('settings')">Settings</div>
   <div class="tab" onclick="switchTab('suggested')">Suggested Model</div>
 </div>
@@ -224,74 +222,8 @@ hr { border: none; border-top: 1px solid #2a2d3a; margin: 16px 0; }
   <!-- MAIN CONTENT -->
   <div class="content">
 
-    <!-- ===== OVERVIEW TAB ===== -->
-    <div class="tab-panel active" id="panel-overview">
-      <div class="cards">
-        <div class="card">
-          <div class="val" id="ov-fi-num">—</div>
-          <div class="lbl">FI Number</div>
-          <div class="sub">4% SWR on target spend</div>
-        </div>
-        <div class="card">
-          <div class="val" id="ov-fi-year">—</div>
-          <div class="lbl">Projected FI Year</div>
-          <div class="sub" id="ov-fi-sub"></div>
-        </div>
-        <div class="card">
-          <div class="val" id="ov-success">—</div>
-          <div class="lbl">Success Rate</div>
-          <div class="sub" id="ov-success-sub">% of 1,000 sims solvent to life expectancy</div>
-        </div>
-        <div class="card">
-          <div class="val" id="ov-spend">—</div>
-          <div class="lbl">Suggested Retirement Spend</div>
-          <div class="sub" id="ov-spend-sub">Income minus investment deposits</div>
-        </div>
-        <div class="card">
-          <div class="val" id="ov-progress">—</div>
-          <div class="lbl">FI Progress</div>
-          <div class="sub">Net worth vs FI number</div>
-        </div>
-        <div class="card">
-          <div class="val" id="ov-monthly-savings">—</div>
-          <div class="lbl">Monthly Deposits</div>
-          <div class="sub" id="ov-annual-savings-sub">— / yr across all accounts</div>
-        </div>
-      </div>
-
-      <div class="chart-box">
-        <h3 id="ov-chart-title">Wealth Trajectory — Percentile Fan (1,000 Simulations)</h3>
-        <div class="chart-sub">Green band = 25th–75th percentile. Dashed lines = 10th and 90th.</div>
-        <canvas id="chart-overview" height="120"></canvas>
-      </div>
-
-      <div class="two-col">
-        <div class="chart-box">
-          <h3>Account Allocation Today</h3>
-          <canvas id="chart-alloc" height="180"></canvas>
-        </div>
-        <div class="chart-box">
-          <h3>Savings Rate Sensitivity</h3>
-          <div class="chart-sub">FI year at different savings rates</div>
-          <canvas id="chart-sensitivity" height="180"></canvas>
-        </div>
-      </div>
-
-      <!-- Disability scenario highlight -->
-      <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1.2px; color:#4b5563; margin: 20px 0 12px;">Disability Projection — Median Portfolio at Life Expectancy</div>
-      <div class="cards" style="grid-template-columns: repeat(auto-fit, minmax(200px,1fr));">
-        <div class="card">
-          <div class="val warn" id="dash-perm-p50">—</div>
-          <div class="lbl">Permanent: LTD + SSDI</div>
-          <div class="sub">LTD to 65 · SSDI → SS at 67</div>
-        </div>
-      </div>
-
-    </div>
-
-    <!-- ===== MONTE CARLO TAB ===== -->
-    <!-- ===== DISABILITY + MC TAB ===== -->
-    <div class="tab-panel" id="panel-disability">
+    <!-- ===== DISABILITY + MC TAB (default) ===== -->
+    <div class="tab-panel active" id="panel-disability">
 
       <!-- Disability MC summary cards -->
       <div class="cards" style="margin-bottom:18px;">
@@ -312,8 +244,8 @@ hr { border: none; border-top: 1px solid #2a2d3a; margin: 16px 0; }
         </div>
         <div class="card">
           <div class="val" id="mc-ruin">—</div>
-          <div class="lbl">Disability Ruin Rate</div>
-          <div class="sub" id="mc-ruin-sub">Sims where portfolio hits $0</div>
+          <div class="lbl">Ruin Risk</div>
+          <div class="sub" id="mc-ruin-sub">% of 1,000 sims where money runs out before you die</div>
         </div>
       </div>
 
@@ -498,9 +430,28 @@ hr { border: none; border-top: 1px solid #2a2d3a; margin: 16px 0; }
         </table>
       </div>
 
-      <!-- How-to-read -->
-      <div class="info-box" style="margin-bottom:18px;">
-        <strong>How to read the fan chart below:</strong> Each scenario runs 1,000 simulations with random market returns (your configured mean ± volatility) layered on top of income shocks. The <strong>solid line</strong> is the median — your most likely path. The <strong>inner band</strong> covers the 25th–75th percentile (50% of outcomes land here). The <strong>outer band</strong> extends to the 10th–90th percentile (80% of outcomes). Vertical dashed markers show disability onset, Social Security age, and life expectancy. <em>Ruin rate</em> = % of 1,000 runs where the portfolio reached $0 before life expectancy.
+      <!-- How Monte Carlo works -->
+      <div class="info-box" style="margin-bottom:14px; border-left: 3px solid #6ee7b7; padding-left:14px;">
+        <strong style="color:#6ee7b7;">How this Monte Carlo model works</strong><br><br>
+        The simulator runs <strong>1,000 separate "life simulations"</strong>. In each one, every year your portfolio earns a random return drawn from a normal distribution centered on your expected return (e.g. 7%) with your configured volatility (e.g. 15%). Some years it's +25%, others it's −18%. These random sequences are layered on top of your fixed income and expense plan — LTD stops at 65, SSDI converts to Social Security at 67, etc.<br><br>
+        Each of those 1,000 paths ends at your life expectancy. The model records two things per simulation: <strong>(1) the final portfolio balance</strong> and <strong>(2) whether the portfolio ever hit $0</strong>. The results are summarized in the fan chart and the cards above.
+      </div>
+
+      <!-- Ruin risk explainer -->
+      <div class="info-box" style="margin-bottom:14px; border-left: 3px solid #f87171; padding-left:14px;">
+        <strong style="color:#f87171;">What is Ruin Risk?</strong><br><br>
+        <strong>Ruin risk</strong> is the percentage of those 1,000 simulations where your portfolio ran out of money <em>before you died</em>. For example, a ruin risk of 36% means that in 360 out of 1,000 simulations, the portfolio hit $0 at some point before your life expectancy — leaving you with no savings to cover the income gap.<br><br>
+        A ruin risk of <strong style="color:#6ee7b7;">under 10%</strong> is generally considered safe. Between <strong style="color:#fbbf24;">10–20%</strong> is moderate — worth managing. Above <strong style="color:#f87171;">20–30%</strong> is high risk and means your current plan has a meaningful chance of leaving you without assets in later life.<br><br>
+        <strong>Ruin risk ≠ you'll definitely go broke.</strong> It's a probability — it means your current numbers have that likelihood of a bad outcome under realistic market variance. The goal of this tool is to show you what levers (expenses, savings, part-time income) move that number down.
+      </div>
+
+      <!-- Fan chart reading guide -->
+      <div class="info-box" style="margin-bottom:18px; border-left: 3px solid #60a5fa; padding-left:14px;">
+        <strong style="color:#60a5fa;">How to read the fan chart</strong><br><br>
+        The <strong>solid line</strong> is your median outcome — the middle of all 1,000 paths. Half of simulations ended above this, half below. This is your most likely trajectory, but not a guarantee.<br><br>
+        The <strong>darker inner band</strong> covers the 25th–75th percentile: 50% of all simulations land inside this zone. It shows the "normal" range of uncertainty.<br><br>
+        The <strong>lighter outer band</strong> covers the 10th–90th percentile: 80% of all simulations land here. The gap between the outer edges shows how much market variance matters over your lifetime.<br><br>
+        <strong>Vertical dashed lines</strong> mark key life events: disability onset, Social Security age (67), and life expectancy. Watch what happens to the fan width at each marker — the wider it gets, the more uncertain things are at that age.
       </div>
 
       <!-- Fan chart -->
@@ -516,13 +467,13 @@ hr { border: none; border-top: 1px solid #2a2d3a; margin: 16px 0; }
       <!-- Ruin + Distribution -->
       <div class="two-col">
         <div class="chart-box">
-          <h3>Disability Ruin Rate</h3>
-          <div class="chart-sub" id="dis-ruin-sub">% of 1,000 sims where portfolio hits $0 before life expectancy</div>
+          <h3>Ruin Risk — Probability of Running Out of Money</h3>
+          <div class="chart-sub" id="dis-ruin-sub">% of 1,000 simulations where portfolio reaches $0 before life expectancy · Green &lt;10% · Yellow 10–20% · Red &gt;20%</div>
           <canvas id="chart-dis-ruin" height="200"></canvas>
         </div>
         <div class="chart-box">
           <h3>Portfolio Distribution at Age 65 — When LTD Ends</h3>
-          <div class="chart-sub">How spread out outcomes are at your target retirement age — wider = more uncertainty</div>
+          <div class="chart-sub">Age 65 is when your LTD policy expires and that income stream stops. This histogram shows the spread of portfolio values across all 1,000 simulations at that exact age. A tall narrow spike = consistent outcomes; a wide spread = high uncertainty. Your portfolio must carry you from this point until Social Security covers more of your expenses.</div>
           <canvas id="chart-dis-retire-dist" height="200"></canvas>
         </div>
       </div>
@@ -1005,7 +956,7 @@ function onInput() {
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.tab-panel').forEach(t => t.classList.remove('active'));
-  const idx = ['overview', 'disability', 'settings', 'suggested'].indexOf(name);
+  const idx = ['disability', 'settings', 'suggested'].indexOf(name);
   document.querySelectorAll('.tab')[idx].classList.add('active');
   document.getElementById('panel-' + name).classList.add('active');
   if (name === 'suggested') renderSuggested();
@@ -1302,9 +1253,6 @@ function renderDisabilityMC() {
     return vals[Math.floor(0.5 * vals.length)];
   };
 
-  // Update dashboard highlight
-  document.getElementById('dash-perm-p50').textContent  = fmt(medianAtEnd('perm'));
-
   // Populate top disability tab cards with perm scenario data at life expectancy
   const permAtEnd = sims.perm.trajectories.map(t => t[t.length - 1]).sort((a, b) => a - b);
   document.getElementById('mc-p50').textContent = fmt(getP(permAtEnd, 50));
@@ -1448,16 +1396,32 @@ function renderDisabilityMC() {
   if (assessEl) {
     const riskLevel = permRuin < 5 ? '🟢 low' : permRuin < 20 ? '🟡 moderate' : '🔴 high';
     const portColor = permMed > 0 ? '#fbbf24' : '#f87171';
+    const ruinWarning = permRuin >= 20
+      ? `<p style="margin-bottom:8px; background:rgba(248,113,113,0.08); border:1px solid rgba(248,113,113,0.2); border-radius:8px; padding:10px 12px; color:#fca5a5;">
+          ⚠️ <strong>High ruin risk (${permRuin}%):</strong> In ${Math.round(permRuin * 10)} out of 1,000 simulations, your portfolio ran out before age ${lifeExp}. This means your current expense level or benefit gap creates a meaningful chance of running out of savings in your 70s–80s when care costs are typically highest. Consider: increasing savings now, reducing discretionary expenses, or targeting part-time income to close the gap.
+        </p>`
+      : permRuin >= 10
+      ? `<p style="margin-bottom:8px; background:rgba(251,191,36,0.08); border:1px solid rgba(251,191,36,0.2); border-radius:8px; padding:10px 12px; color:#fde68a;">
+          ⚡ <strong>Moderate ruin risk (${permRuin}%):</strong> In ${Math.round(permRuin * 10)} out of 1,000 simulations, the portfolio ran out before age ${lifeExp}. This is manageable but worth monitoring — especially after age 65 when LTD ends and the monthly gap widens.
+        </p>`
+      : `<p style="margin-bottom:8px; background:rgba(110,231,183,0.08); border:1px solid rgba(110,231,183,0.2); border-radius:8px; padding:10px 12px; color:#6ee7b7;">
+          ✅ <strong>Low ruin risk (${permRuin}%):</strong> In ${Math.round(permRuin * 10)} out of 1,000 simulations, the portfolio ran out before age ${lifeExp}. Your current plan shows resilience under most market scenarios.
+        </p>`;
+
     assessEl.innerHTML = `
       <div style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1.2px; color:#4b5563; margin-bottom:10px;">Plain-English Assessment</div>
       <p style="margin-bottom:8px;">
-        <strong style="color:#fbbf24;">Permanent disability (LTD + SSDI):</strong> With disability onset at age ${disAge}, your median projected portfolio at age ${lifeExp} is <strong style="color:${portColor};">${fmt(permMed)}</strong>. Your ruin risk is <strong style="color:${ruinColor(permRuin)};">${riskLevel} at ${permRuin}%</strong>.
+        <strong style="color:#fbbf24;">Permanent disability (LTD + SSDI):</strong> Disability onset at age ${disAge}. Your W2 income stops and LTD + SSDI replace a portion of it. The model runs 1,000 market scenarios from today to age ${lifeExp} to see how your portfolio holds up under that income structure.
+      </p>
+      ${ruinWarning}
+      <p style="margin-bottom:8px; color:#9ca3af;">
+        <strong style="color:#e0e0e0;">Income timeline:</strong> LTD (${fmt(ltdBenefit)}/mo flat) runs until age 65 when the policy expires → SSDI (${fmt(ssdiMonthly)}/mo growing ${(inflation*100).toFixed(1)}%/yr) runs until age 67 → Social Security begins at 67 and runs for life. Monthly expenses: ${fmt(disMonthlyExpenses)}/mo throughout.
       </p>
       <p style="margin-bottom:8px; color:#9ca3af;">
-        LTD (${fmt(ltdBenefit)}/mo flat) runs to 65 · SSDI (${fmt(ssdiMonthly)}/mo + ${(inflation*100).toFixed(1)}% COLA) runs to 67 · SS begins at 67 · Monthly expenses: ${fmt(disMonthlyExpenses)}/mo
+        <strong style="color:#e0e0e0;">Median outcome:</strong> If you hit the median scenario, your portfolio at age ${lifeExp} is <strong style="color:${portColor};">${fmt(permMed)}</strong>. But the median is not a plan — the fan chart above shows how wide the range of outcomes is.
       </p>
       <p style="color:#4b5563; font-size:11px; margin-top:4px;">
-        ${N_SIMS.toLocaleString()} simulations with randomised market returns (${(expReturn*100).toFixed(1)}% avg, ${(volatility*100).toFixed(1)}% volatility). The P25–P75 band shows where 50% of outcomes land.
+        Model parameters: ${N_SIMS.toLocaleString()} simulations · ${(expReturn*100).toFixed(1)}% avg annual return · ${(volatility*100).toFixed(1)}% annual volatility · returns drawn independently each year
       </p>`;
   }
 
@@ -1515,7 +1479,7 @@ function renderDisabilityMC() {
   makeChart('dis-retire-dist', 'chart-dis-retire-dist', 'bar', {
     labels: ph.counts.map((_, i) => fmt(ph.min + i * ph.binSize)),
     datasets: [
-      { label: 'Permanent Disability at 65', data: ph.counts, backgroundColor: 'rgba(251,191,36,0.4)', borderColor: '#fbbf24', borderWidth: 1, borderRadius: 3 },
+      { label: 'Portfolio Value at Age 65 (across 1,000 sims)', data: ph.counts, backgroundColor: 'rgba(251,191,36,0.4)', borderColor: '#fbbf24', borderWidth: 1, borderRadius: 3 },
     ]
   }, {
     ...baseOpts(false),
