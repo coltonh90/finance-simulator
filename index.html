@@ -215,7 +215,7 @@ hr { border: none; border-top: 1px solid #2a2d3a; margin: 16px 0; }
 <div class="tabs">
   <div class="tab active" onclick="switchTab('overview')">Dashboard</div>
   <div class="tab" onclick="switchTab('disability')">Disability &amp; Monte Carlo</div>
-  <div class="tab" onclick="switchTab('states')">State Comparison</div>
+
   <div class="tab" onclick="switchTab('settings')">Settings</div>
   <div class="tab" onclick="switchTab('suggested')">Suggested Model</div>
 </div>
@@ -292,25 +292,6 @@ hr { border: none; border-top: 1px solid #2a2d3a; margin: 16px 0; }
         </div>
       </div>
 
-      <!-- State comparison mini-summary -->
-      <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1.2px; color:#4b5563; margin: 20px 0 12px;">State Tax Comparison — Annual Take-Home</div>
-      <div class="cards" style="grid-template-columns: repeat(3, 1fr);">
-        <div class="card">
-          <div class="val" id="dash-ne-th">—</div>
-          <div class="lbl">🌽 Nebraska</div>
-          <div class="sub">~4.45% effective income tax</div>
-        </div>
-        <div class="card">
-          <div class="val" id="dash-az-th">—</div>
-          <div class="lbl">🌵 Arizona</div>
-          <div class="sub">2.5% flat income tax</div>
-        </div>
-        <div class="card">
-          <div class="val" id="dash-fl-th">—</div>
-          <div class="lbl">🌴 Florida</div>
-          <div class="sub">No state income tax</div>
-        </div>
-      </div>
     </div>
 
     <!-- ===== MONTE CARLO TAB ===== -->
@@ -553,61 +534,6 @@ hr { border: none; border-top: 1px solid #2a2d3a; margin: 16px 0; }
     </div>
 
     <!-- ===== STATE COMPARISON TAB ===== -->
-    <div class="tab-panel" id="panel-states">
-      <div class="info-box">
-        Comparing your <strong>$94,760</strong> income across Nebraska, Arizona, and Florida. Federal taxes are identical — only state-level differences matter here. COL adjustments show real purchasing power.
-      </div>
-
-      <div class="cards" style="grid-template-columns: repeat(3, 1fr);">
-        <div class="card">
-          <div class="val" id="st-ne-takehome">—</div>
-          <div class="lbl">Nebraska Take-Home</div>
-          <div class="sub">After state income tax</div>
-        </div>
-        <div class="card">
-          <div class="val" id="st-az-takehome">—</div>
-          <div class="lbl">Arizona Take-Home</div>
-          <div class="sub">After state income tax</div>
-        </div>
-        <div class="card">
-          <div class="val" id="st-fl-takehome">—</div>
-          <div class="lbl">Florida Take-Home</div>
-          <div class="sub">No state income tax</div>
-        </div>
-      </div>
-
-      <div class="two-col">
-        <div class="chart-box">
-          <h3>Annual State Tax Burden</h3>
-          <canvas id="chart-state-tax" height="200"></canvas>
-        </div>
-        <div class="chart-box">
-          <h3>Take-Home Pay Comparison</h3>
-          <canvas id="chart-state-pay" height="200"></canvas>
-        </div>
-      </div>
-
-      <div class="chart-box">
-        <h3>30-Year Net Worth: How State Choice Compounds Over Time</h3>
-        <div class="chart-sub">Same savings rate, same returns — only state income tax differs. The gap compounds significantly.</div>
-        <canvas id="chart-state-long" height="110"></canvas>
-      </div>
-
-      <div class="chart-box">
-        <h3>Full State Comparison — Your $94,760 Income</h3>
-        <table class="state-table">
-          <thead>
-            <tr>
-              <th>Metric</th>
-              <th>Nebraska 🌽</th>
-              <th>Arizona 🌵</th>
-              <th>Florida 🌴</th>
-            </tr>
-          </thead>
-          <tbody id="state-tbody"></tbody>
-        </table>
-      </div>
-    </div>
 
     <!-- ===== SETTINGS TAB ===== -->
     <div class="tab-panel" id="panel-settings">
@@ -1080,7 +1006,7 @@ function onInput() {
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.tab-panel').forEach(t => t.classList.remove('active'));
-  const idx = ['overview', 'disability', 'states', 'settings', 'suggested'].indexOf(name);
+  const idx = ['overview', 'disability', 'settings', 'suggested'].indexOf(name);
   document.querySelectorAll('.tab')[idx].classList.add('active');
   document.getElementById('panel-' + name).classList.add('active');
   if (name === 'suggested') renderSuggested();
@@ -1095,7 +1021,7 @@ function runAll() {
   renderOverview(p, simData);
   renderDisabilityBaseMC(p, simData);
   renderDisability();
-  renderStates(p);
+
   renderSuggested();
 
   const fiAge = estimateFiAge(p);
@@ -1801,10 +1727,7 @@ function renderDisability() {
   }, baseOpts());
 }
 
-// ─────────────────────────────────────────────────────────────
-// STATE COMPARISON TAB
-// ─────────────────────────────────────────────────────────────
-const STATE_DATA = {
+/* STATE_DATA = {
   Nebraska: {
     flag: '🌽',
     // Progressive: ~4.5% effective on $94,760 single filer (2025, rates being phased down)
@@ -1955,7 +1878,7 @@ function renderStates(p) {
       }).join('');
     tbody.appendChild(tr);
   });
-}
+} */
 
 // ─────────────────────────────────────────────────────────────
 // SUGGESTED MODEL TAB
