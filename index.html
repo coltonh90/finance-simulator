@@ -363,7 +363,8 @@ hr { border: none; border-top: 1px solid #2a2d3a; margin: 16px 0; }
         <div style="background:#1e2130; border-radius:8px; padding:10px 12px; font-size:11px; color:#6b7280; line-height:1.7;">
           <strong style="color:#9ca3af;">Fixed policy terms:</strong><br>
           STD: 8-day wait · 90-day benefit<br>
-          LTD: begins Day 91 (month 3)<br>
+          LTD: begins Day 91 · ends at 65<br>
+          SSDI: ends at 67 → converts to SS<br>
           SSI: always begins at age 67
         </div>
       </div>
@@ -423,7 +424,7 @@ hr { border: none; border-top: 1px solid #2a2d3a; margin: 16px 0; }
               <input type="number" id="ssdiStartAge" value="46" min="36" max="67" oninput="onDisInput()" style="font-size:12px; padding:5px 8px;">
             </div>
           </div>
-          <p>Medicare: <strong>24 months after award</strong></p>
+          <p>Ends at: <strong>Age 67 → converts to SS retirement</strong></p>
           <p>Monthly benefit: <strong id="d-ssdi-mo">—</strong></p>
           <p>Net LTD after offset: <strong id="d-ltd-net">—</strong>/mo</p>
           <div class="impact-val" style="color:#6ee7b7;" id="d-ssdi-annual">—</div>
@@ -1170,47 +1171,49 @@ function runDisabilityScenarioMC(scenario, disAge, stdMo, income, netWorth, expR
         }
 
       } else if (scenario === 'perm') {
-        // Permanent: disability onset IS effective retirement — PERM_RETIRE = min(disAge, retireAge)
+        // Permanent: LTD ends at 65, SSDI runs to 67, then converts to SS retirement
         if (age < disAge) {
           cashFlow = getSavingsForAge(age, savingsPhases);
-        } else if (age < 65) {
+        } else if (age < 67) {
           const monthsDisabled = (age - disAge) * 12;
           const ltdStartMonth  = stdStartMo + stdMo + ltdElimMo;
-          const ltdAnnual  = monthsDisabled >= ltdStartMonth ? effectiveLtd * 12 : 0;
-          const ssdiAnnual = monthsDisabled >= ssdiStartMo   ? ssdiMonthly * 12   : 0;
+          const ltdAnnual  = (monthsDisabled >= ltdStartMonth && age < 65) ? effectiveLtd * 12 : 0;
+          const ssdiAnnual = monthsDisabled >= ssdiStartMo ? ssdiMonthly * 12 : 0;
           const ptAnnual   = ptIncome > 0 && age >= ptStartAge && age <= ptEndAge ? ptIncome * 12 : 0;
           cashFlow = ltdAnnual + ssdiAnnual + ptAnnual - income * 0.62;
         } else {
+          // SSDI converts to SS retirement at 67
           const infl = Math.pow(1 + inflation, Math.max(0, age - PERM_RETIRE));
-          cashFlow = -income * 0.50 * infl + (age >= SS_AGE ? SS_ANNUAL : 0);
+          cashFlow = -income * 0.50 * infl + SS_ANNUAL;
         }
 
       } else if (scenario === 'ssdionly') {
-        // SSDI only — disability onset IS effective retirement
+        // SSDI only — runs to 67, then converts to SS retirement
         if (age < disAge) {
           cashFlow = getSavingsForAge(age, savingsPhases);
-        } else if (age < 65) {
+        } else if (age < 67) {
           const monthsDisabled = (age - disAge) * 12;
           const ssdiAnnual = monthsDisabled >= ssdiStartMo ? ssdiMonthly * 12 : 0;
           const ptAnnual   = ptIncome > 0 && age >= ptStartAge && age <= ptEndAge ? ptIncome * 12 : 0;
           cashFlow = ssdiAnnual + ptAnnual - income * 0.62;
         } else {
+          // SSDI converts to SS retirement at 67
           const infl = Math.pow(1 + inflation, Math.max(0, age - PERM_RETIRE));
-          cashFlow = -income * 0.50 * infl + (age >= SS_AGE ? SS_ANNUAL : 0);
+          cashFlow = -income * 0.50 * infl + SS_ANNUAL;
         }
 
       } else if (scenario === 'ssi') {
-        // SSI only — disability onset IS effective retirement
+        // SSI only — worst case, no SSDI; SSI begins at 67 (asset-limited until then)
         if (age < disAge) {
           cashFlow = getSavingsForAge(age, savingsPhases);
-        } else if (age < 65) {
-          const monthsDisabled = (age - disAge) * 12;
-          const ssiAnnual  = monthsDisabled >= ssiStartMo ? ssiMonthly * 12 : 0;
-          const ptAnnual   = ptIncome > 0 && age >= ptStartAge && age <= ptEndAge ? ptIncome * 12 : 0;
-          cashFlow = ssiAnnual + ptAnnual - income * 0.62;
+        } else if (age < 67) {
+          // No SSDI qualified; spending from portfolio with any PT income
+          const ptAnnual = ptIncome > 0 && age >= ptStartAge && age <= ptEndAge ? ptIncome * 12 : 0;
+          cashFlow = ptAnnual - income * 0.62;
         } else {
+          // SSI takes over at 67 (replaces SS since assets depleted / no SS credits)
           const infl = Math.pow(1 + inflation, Math.max(0, age - PERM_RETIRE));
-          cashFlow = -income * 0.50 * infl + (age >= SS_AGE ? SS_ANNUAL : 0);
+          cashFlow = -income * 0.50 * infl + ssiMonthly * 12;
         }
       }
 
@@ -1617,8 +1620,8 @@ function renderDisability() {
       annualIncome += effectiveLtd * 12;
     }
 
-    // SSDI: active after ssdiStartMo, to age 65 (then converts to SS)
-    const ssdiActive = monthsDisabled >= ssdiStartMo && age < 65;
+    // SSDI: active after ssdiStartMo, ends at 67 (converts to SS retirement)
+    const ssdiActive = monthsDisabled >= ssdiStartMo && age < 67;
     if (ssdiActive) annualIncome += ssdiMonthly * 12;
 
     // Part-time work
@@ -1643,31 +1646,31 @@ function renderDisability() {
 
   const permScenario = buildTraj(age => {
     if (age < disAge) return getSavingsForAge(age, savingsPhases);
-    if (age <= 65) return disabilityAnnualIncome(age) - income * 0.62;
+    if (age < 67) return disabilityAnnualIncome(age) - income * 0.62; // LTD caps at 65 inside helper, SSDI runs to 67
     const infl = Math.pow(1 + inflation, Math.max(0, age - PERM_RETIRE));
-    return -income * 0.55 * infl + (age >= SS_AGE ? SS_ANNUAL : 0);
+    return -income * 0.55 * infl + SS_ANNUAL; // SSDI converts to SS at 67
   });
 
   const ssdiOnly = buildTraj(age => {
     if (age < disAge) return getSavingsForAge(age, savingsPhases);
-    if (age <= 65) {
+    if (age < 67) {
       const ssdiAnnual = (age - disAge) * 12 >= ssdiStartMo ? ssdiMonthly * 12 : 0;
       const ptAnnual   = ptIncome > 0 && age >= ptStartAge && age <= ptEndAge ? ptIncome * 12 : 0;
       return ssdiAnnual + ptAnnual - income * 0.62;
     }
     const infl = Math.pow(1 + inflation, Math.max(0, age - PERM_RETIRE));
-    return -income * 0.55 * infl + (age >= SS_AGE ? SS_ANNUAL : 0);
+    return -income * 0.55 * infl + SS_ANNUAL; // SSDI converts to SS at 67
   });
 
   const ssiOnly = buildTraj(age => {
     if (age < disAge) return getSavingsForAge(age, savingsPhases);
-    if (age <= 65) {
-      const ssiAnnual = (age - disAge) * 12 >= ssiStartMo ? ssiMonthly * 12 : 0;
-      const ptAnnual  = ptIncome > 0 && age >= ptStartAge && age <= ptEndAge ? ptIncome * 12 : 0;
-      return ssiAnnual + ptAnnual - income * 0.62;
+    if (age < 67) {
+      // No SSDI; spending from portfolio with any PT income
+      const ptAnnual = ptIncome > 0 && age >= ptStartAge && age <= ptEndAge ? ptIncome * 12 : 0;
+      return ptAnnual - income * 0.62;
     }
     const infl = Math.pow(1 + inflation, Math.max(0, age - PERM_RETIRE));
-    return -income * 0.55 * infl + (age >= SS_AGE ? SS_ANNUAL : 0);
+    return -income * 0.55 * infl + ssiMonthly * 12; // SSI takes over at 67
   });
 
   renderDisabilityMC();
