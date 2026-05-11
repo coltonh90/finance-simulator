@@ -215,7 +215,6 @@ hr { border: none; border-top: 1px solid #2a2d3a; margin: 16px 0; }
 <div class="tabs">
   <div class="tab active" onclick="switchTab('disability')">Disability &amp; Monte Carlo</div>
   <div class="tab" onclick="switchTab('settings')">Settings</div>
-  <div class="tab" onclick="switchTab('suggested')">Suggested Model</div>
 </div>
 
 <div class="layout">
@@ -250,7 +249,7 @@ hr { border: none; border-top: 1px solid #2a2d3a; margin: 16px 0; }
       </div>
 
       <div class="info-box">
-        <strong>W2 income stops at disability onset.</strong> This model projects financial quality of life across disability scenarios using your actual benefit amounts. LTD/SSDI/SSI replace a portion of income — the gap is funded by your portfolio. Configure your expected monthly living expenses below.
+        <strong>W2 income stops at disability onset.</strong> This model projects financial quality of life using your actual benefit amounts. LTD/SSDI/SS replace a portion of income — the remainder is funded by your portfolio at the rate you set in the <strong style="color:#6ee7b7;">Withdrawal Schedule</strong> (Settings tab). Lower withdrawal rate = more conservative portfolio spending = lower ruin risk. Run Simulation after changing any setting to update the charts.
       </div>
 
       <!-- Top row: onset age + expenses + policy terms -->
@@ -561,7 +560,11 @@ hr { border: none; border-top: 1px solid #2a2d3a; margin: 16px 0; }
 
         <hr>
         <div class="section-label">Withdrawal Schedule</div>
-        <div style="font-size:10px; color:#4b5563; margin-bottom:10px;">Set spending rate by life phase. Each tier = % of initial retirement portfolio, inflation-adjusted.</div>
+        <div style="font-size:10px; color:#4b5563; margin-bottom:10px; line-height:1.6;">
+          Annual portfolio draw rate by age phase — used in the Monte Carlo simulation.<br>
+          Each tier = % of your portfolio at disability onset, inflation-adjusted each year.<br>
+          <strong style="color:#9ca3af;">Lower rate = more conservative spending = lower ruin risk.</strong>
+        </div>
         <div id="tier-list"></div>
         <button onclick="addWithdrawalTier()" style="width:100%; padding:7px; border-radius:6px; font-size:12px; font-weight:600; cursor:pointer; border:1px dashed #2a2d3a; background:transparent; color:#6b7280; margin-top:4px;" onmouseover="this.style.borderColor='#6ee7b7';this.style.color='#6ee7b7'" onmouseout="this.style.borderColor='#2a2d3a';this.style.color='#6b7280'">+ Add Age Tier</button>
 
@@ -569,69 +572,6 @@ hr { border: none; border-top: 1px solid #2a2d3a; margin: 16px 0; }
       </div>
     </div>
 
-    <!-- ===== SUGGESTED MODEL TAB ===== -->
-    <div class="tab-panel" id="panel-suggested">
-
-      <!-- Quality of life headline cards -->
-      <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1.2px; color:#4b5563; margin-bottom:12px;">Monthly Budget at Disability Onset</div>
-      <div class="cards" style="grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); margin-bottom:20px;">
-        <div class="card">
-          <div class="val bad" id="sm-monthly-gap">—</div>
-          <div class="lbl">Monthly Gap</div>
-          <div class="sub">Expenses minus LTD + SSDI</div>
-        </div>
-        <div class="card">
-          <div class="val" id="sm-runway">—</div>
-          <div class="lbl">Portfolio Runway</div>
-          <div class="sub">Years portfolio covers gap</div>
-        </div>
-        <div class="card">
-          <div class="val" id="sm-ruin">—</div>
-          <div class="lbl">Ruin Risk</div>
-          <div class="sub">1,000-sim Monte Carlo</div>
-        </div>
-        <div class="card">
-          <div class="val" id="sm-port65">—</div>
-          <div class="lbl">Portfolio at Age 65</div>
-          <div class="sub">When LTD ends</div>
-        </div>
-      </div>
-
-      <!-- Monthly cash flow by phase -->
-      <div class="chart-box" style="margin-bottom:18px;">
-        <h3>Monthly Cash Flow — Life Phases</h3>
-        <div class="chart-sub">Income vs expenses at each phase. Gap = amount drawn from portfolio each month.</div>
-        <div id="sm-cashflow-phases"></div>
-      </div>
-
-      <!-- HSA Shoebox -->
-      <div class="chart-box" style="margin-bottom:18px;">
-        <h3>HSA — Shoebox Method</h3>
-        <div id="sm-hsa-detail" style="font-size:13px; color:#9ca3af; line-height:1.8;"></div>
-      </div>
-
-      <!-- Affordability table -->
-      <div class="chart-box" style="margin-bottom:18px; overflow-x:auto;">
-        <h3>Can I Afford My Expenses? — Key Age Checkpoints</h3>
-        <div class="chart-sub">Deterministic projection. Green = expenses covered. Red = portfolio depleted.</div>
-        <div id="sm-dis-table"></div>
-      </div>
-
-      <!-- Recommendations -->
-      <div class="chart-box" style="margin-bottom:18px;">
-        <h3>Recommendations</h3>
-        <div id="sm-recommendations" style="font-size:13px; color:#9ca3af; line-height:1.9;"></div>
-      </div>
-
-      <!-- Hidden legacy IDs so JS doesn't crash on elements it still sets -->
-      <span id="sm-status" style="display:none"></span>
-      <span id="sm-status-sub" style="display:none"></span>
-      <span id="sm-fi-year" style="display:none"></span>
-      <span id="sm-fi-sub" style="display:none"></span>
-      <span id="sm-withdrawal-detail" style="display:none"></span>
-      <span id="sm-income-timeline" style="display:none"></span>
-
-    </div>
 
   </div><!-- end content -->
 </div><!-- end layout -->
@@ -925,7 +865,7 @@ function estimateFiAge(p) {
 // UI SYNC
 // ─────────────────────────────────────────────────────────────
 let simData = null;
-let disabilityRuinPct = null; // set by renderDisabilityMC, used by renderSuggested
+let disabilityRuinPct = null; // set by renderDisabilityMC
 
 function onInput() {
   const p = getP_();
@@ -958,10 +898,9 @@ function onInput() {
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.tab-panel').forEach(t => t.classList.remove('active'));
-  const idx = ['disability', 'settings', 'suggested'].indexOf(name);
+  const idx = ['disability', 'settings'].indexOf(name);
   document.querySelectorAll('.tab')[idx].classList.add('active');
   document.getElementById('panel-' + name).classList.add('active');
-  if (name === 'suggested') renderSuggested();
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -972,8 +911,6 @@ function runAll() {
   simData = runSims(p);
   renderDisabilityBaseMC(p, simData);
   renderDisability();
-
-  renderSuggested();
 
   const fiAge = estimateFiAge(p);
   document.getElementById('hdr-prog').textContent = pct(p.netWorth / p.fiNumber, 0);
@@ -1096,6 +1033,7 @@ function runDisabilityScenarioMC(scenario, disAge, stdMo, income, netWorth, expR
 
   for (let s = 0; s < N_SIMS; s++) {
     let port = netWorth;
+    let initialPort = null; // locked at disability onset for withdrawal rate calc
     const traj = [port];
     let ruined = false;
 
@@ -1131,22 +1069,33 @@ function runDisabilityScenarioMC(scenario, disAge, stdMo, income, netWorth, expR
 
       } else if (scenario === 'perm') {
         // Permanent: LTD ends at 65 (flat), SSDI runs to 67 w/ COLA, then converts to SS retirement
+        // Spending is governed by the withdrawal schedule (tiers), not a fixed expense line.
+        // This lets the withdrawal rate directly affect MC results — lower rate = more conservative.
         if (age < disAge) {
           cashFlow = getSavingsForAge(age, savingsPhases);
-        } else if (age < 67) {
+        } else {
+          if (!initialPort) initialPort = port; // lock portfolio value at disability onset
           const monthsDisabled = (age - disAge) * 12;
           const ltdStartMonth  = stdStartMo + stdMo + ltdElimMo;
-          const ltdAnnual  = (monthsDisabled >= ltdStartMonth && age < 65) ? effectiveLtd * 12 : 0; // LTD flat
+          const ltdAnnual   = (monthsDisabled >= ltdStartMonth && age < 65) ? effectiveLtd * 12 : 0;
           const ssdiStartAge = disAge + ssdiStartMo / 12;
-          const ssdiCola   = Math.pow(1 + inflation, Math.max(0, age - ssdiStartAge));
-          const ssdiAnnual = monthsDisabled >= ssdiStartMo ? ssdiMonthly * 12 * ssdiCola : 0;
-          const ptCola     = ptIncome > 0 && age >= ptStartAge ? Math.pow(1 + inflation, age - ptStartAge) : 1;
-          const ptAnnual   = ptIncome > 0 && age >= ptStartAge && age <= ptEndAge ? ptIncome * 12 * ptCola : 0;
-          cashFlow = ltdAnnual + ssdiAnnual + ptAnnual - disAnnualExpenses;
-        } else {
-          // SSDI converts to SS retirement at 67
-          const infl = Math.pow(1 + inflation, Math.max(0, age - PERM_RETIRE));
-          cashFlow = -disAnnualExpenses * infl + SS_ANNUAL;
+          const ssdiCola    = Math.pow(1 + inflation, Math.max(0, age - ssdiStartAge));
+          const ssdiAnnual  = (monthsDisabled >= ssdiStartMo && age < 67) ? ssdiMonthly * 12 * ssdiCola : 0;
+          const ssAnnual    = age >= 67 ? SS_ANNUAL : 0;
+          const ptCola      = ptIncome > 0 && age >= ptStartAge ? Math.pow(1 + inflation, age - ptStartAge) : 1;
+          const ptAnnual    = ptIncome > 0 && age >= ptStartAge && age <= ptEndAge ? ptIncome * 12 * ptCola : 0;
+          const totalIncome = ltdAnnual + ssdiAnnual + ssAnnual + ptAnnual;
+          // Annual spend: withdrawal schedule drives MC spending; fall back to fixed expenses if no tiers.
+          // Tier lookup: match age to tier range; use first tier for ages before tiers start, last for after.
+          const annualSpend = (() => {
+            if (!tiers || tiers.length === 0 || !initialPort) return disAnnualExpenses;
+            const inflFactor = Math.pow(1 + inflation, Math.max(0, age - disAge));
+            const sorted = [...tiers].sort((a, b) => a.from - b.from);
+            const tier = sorted.find(t => age >= t.from && age <= t.to)
+                      || (age < sorted[0].from ? sorted[0] : sorted[sorted.length - 1]);
+            return initialPort * (tier.rate / 100) * inflFactor;
+          })();
+          cashFlow = totalIncome - annualSpend;
         }
 
       } else if (scenario === 'ssdionly') {
@@ -1793,7 +1742,7 @@ function renderStates(p) {
 } */
 
 // ─────────────────────────────────────────────────────────────
-// SUGGESTED MODEL TAB
+// SUGGESTED MODEL TAB (removed — kept as no-op to avoid stale call-site errors)
 // ─────────────────────────────────────────────────────────────
 function renderSuggested() {
   const p  = getP_();
