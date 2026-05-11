@@ -1429,10 +1429,7 @@ function renderDisabilityMC() {
 
   const palette = {
     baseline: { line: '#6ee7b7', inner: 'rgba(110,231,183,0.13)', outer: 'rgba(110,231,183,0.05)' },
-    std:      { line: '#60a5fa', inner: 'rgba(96,165,250,0.13)',  outer: 'rgba(96,165,250,0.05)'  },
     perm:     { line: '#fbbf24', inner: 'rgba(251,191,36,0.13)',  outer: 'rgba(251,191,36,0.05)'  },
-    ssdionly: { line: '#f87171', inner: 'rgba(248,113,113,0.13)', outer: 'rgba(248,113,113,0.05)' },
-    ssi:      { line: '#c084fc', inner: 'rgba(192,132,252,0.13)', outer: 'rgba(192,132,252,0.05)' },
   };
   const names = { baseline: 'Baseline (No Disability)', perm: 'Permanent: LTD + SSDI' };
 
@@ -1523,13 +1520,10 @@ function renderDisabilityMC() {
   // ── Plain-English assessment ──
   const baseMed   = medianAtEnd('baseline');
   const permMed   = medianAtEnd('perm');
-  const ssdiMed   = medianAtEnd('ssdionly');
   const baseRuin  = ruinByKey['baseline'];
   const permRuin  = ruinByKey['perm'];
-  const ssdiRuin  = ruinByKey['ssdionly'];
   const wealthDrop = baseMed - permMed;
   const wealthPct  = baseMed > 0 ? Math.round(wealthDrop / baseMed * 100) : 0;
-  const ltdVsSsdi  = permMed - ssdiMed;
   const assessEl = document.getElementById('dis-assessment');
   if (assessEl) {
     const riskLevel = permRuin < 5 ? '🟢 low' : permRuin < 20 ? '🟡 moderate' : '🔴 high';
@@ -1539,13 +1533,10 @@ function renderDisabilityMC() {
         <strong style="color:#e0e0e0;">If disability never occurs</strong>, your median projected portfolio at age ${lifeExp} is <strong style="color:#6ee7b7;">${fmt(baseMed)}</strong> with a ${baseRuin}% ruin rate.
       </p>
       <p style="margin-bottom:8px;">
-        <strong style="color:#fbbf24;">Permanent disability with full LTD + SSDI</strong> reduces your projected wealth by <strong style="color:#f87171;">${fmt(wealthDrop)} (−${wealthPct}%)</strong>, leaving a median of <strong style="color:#fbbf24;">${fmt(permMed)}</strong>. Your ruin risk is <strong style="color:${ruinColor(permRuin)};">${riskLevel} at ${permRuin}%</strong>.
-      </p>
-      <p style="margin-bottom:8px;">
-        <strong style="color:#f87171;">Without LTD coverage (SSDI only)</strong>, your median outcome drops further to <strong style="color:#f87171;">${fmt(ssdiMed)}</strong> with a ${ssdiRuin}% ruin rate. LTD coverage adds approximately <strong style="color:#6ee7b7;">${fmt(ltdVsSsdi)}</strong> in median wealth at life expectancy.
+        <strong style="color:#fbbf24;">Permanent disability (LTD + SSDI)</strong> reduces your projected wealth by <strong style="color:#f87171;">${fmt(wealthDrop)} (−${wealthPct}%)</strong>, leaving a median of <strong style="color:#fbbf24;">${fmt(permMed)}</strong>. Your ruin risk is <strong style="color:${ruinColor(permRuin)};">${riskLevel} at ${permRuin}%</strong>.
       </p>
       <p style="color:#4b5563; font-size:11px; margin-top:4px;">
-        These projections use ${N_SIMS.toLocaleString()} random simulations. Results vary with market conditions — the P25–P75 band in the table above shows the range of realistic outcomes.
+        Each scenario runs ${N_SIMS.toLocaleString()} simulations with randomised market returns. The P25–P75 band shows the range where 50% of outcomes land.
       </p>`;
   }
 
