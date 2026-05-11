@@ -278,27 +278,17 @@ hr { border: none; border-top: 1px solid #2a2d3a; margin: 16px 0; }
       </div>
 
       <!-- Disability scenario highlights -->
-      <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1.2px; color:#4b5563; margin: 20px 0 12px;">Disability Risk — Median Portfolio at Life Expectancy</div>
-      <div class="cards">
+      <div style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1.2px; color:#4b5563; margin: 20px 0 12px;">Disability Impact — Median Portfolio at Life Expectancy</div>
+      <div class="cards" style="grid-template-columns: repeat(auto-fit, minmax(200px,1fr));">
         <div class="card">
           <div class="val" id="dash-base-p50">—</div>
           <div class="lbl">No Disability (Baseline)</div>
           <div class="sub">Healthy trajectory median</div>
         </div>
         <div class="card">
-          <div class="val" style="color:#60a5fa;" id="dash-std-p50">—</div>
-          <div class="lbl">STD → Full Recovery</div>
-          <div class="sub">Temporary hit, then back on track</div>
-        </div>
-        <div class="card">
           <div class="val warn" id="dash-perm-p50">—</div>
-          <div class="lbl">Permanent LTD + SSDI</div>
-          <div class="sub">Disability onset = effective retirement</div>
-        </div>
-        <div class="card">
-          <div class="val bad" id="dash-ssdi-p50">—</div>
-          <div class="lbl">SSDI Only (no LTD)</div>
-          <div class="sub">Worst case without employer coverage</div>
+          <div class="lbl">Permanent: LTD + SSDI</div>
+          <div class="sub">LTD to 65 · SSDI → SS at 67</div>
         </div>
       </div>
 
@@ -1383,7 +1373,7 @@ function renderDisabilityMC() {
   const tiers   = withdrawalTiers;
 
   const args = [disAge, stdMo, income, netWorth, expReturn, volatility, inflation, savingsPhases, stdBenefit, ltdBenefit, ssdiMonthly, ssiMonthly, stdStartMo, ltdElimMo, ssdiStartMo, ssiStartMo, ssdiOffsetsLtd, ptIncome, ptStartAge, ptEndAge, lifeExp, tiers, retireAge, disAnnualExpenses];
-  const keys  = ['baseline', 'std', 'perm', 'ssdionly', 'ssi'];
+  const keys  = ['baseline', 'perm'];
   const sims  = {};
   keys.forEach(k => { sims[k] = runDisabilityScenarioMC(k, ...args); });
 
@@ -1399,17 +1389,12 @@ function renderDisabilityMC() {
 
   // Update dashboard highlights
   document.getElementById('dash-base-p50').textContent  = fmt(medianAtEnd('baseline'));
-  document.getElementById('dash-std-p50').textContent   = fmt(medianAtEnd('std'));
   document.getElementById('dash-perm-p50').textContent  = fmt(medianAtEnd('perm'));
-  document.getElementById('dash-ssdi-p50').textContent  = fmt(medianAtEnd('ssdionly'));
 
   // ── Scenario summary table ──
   const scenarioMeta = [
-    { key: 'baseline', color: '#6ee7b7', name: 'Baseline (No Disability)',  desc: 'Work to target retirement age, no disability event' },
-    { key: 'std',      color: '#60a5fa', name: 'STD → Full Recovery',       desc: 'Disabled at onset age, STD pays 90 days, then full income returns' },
-    { key: 'perm',     color: '#fbbf24', name: 'Permanent: LTD + SSDI',     desc: 'Permanent disability — LTD to 65, SSDI after approval, SS at 67' },
-    { key: 'ssdionly', color: '#f87171', name: 'Permanent: SSDI Only',      desc: 'No LTD coverage — SSDI only until 65, then SS retirement' },
-    { key: 'ssi',      color: '#c084fc', name: 'Worst Case: SSI Only',      desc: 'Assets depleted; only SSI (starts age 67, $2k asset limit)' },
+    { key: 'baseline', color: '#6ee7b7', name: 'Baseline (No Disability)',  desc: 'Work to target retirement age — no disability event' },
+    { key: 'perm',     color: '#fbbf24', name: 'Permanent: LTD + SSDI',     desc: 'Permanent disability — LTD to 65, SSDI after approval, converts to SS at 67' },
   ];
   const getRange = (k) => {
     const bands = getPctBands(sims[k].trajectories, [25, 75]);
@@ -1449,7 +1434,7 @@ function renderDisabilityMC() {
     ssdionly: { line: '#f87171', inner: 'rgba(248,113,113,0.13)', outer: 'rgba(248,113,113,0.05)' },
     ssi:      { line: '#c084fc', inner: 'rgba(192,132,252,0.13)', outer: 'rgba(192,132,252,0.05)' },
   };
-  const names = { baseline: 'Baseline', std: 'STD→Recovery', perm: 'Perm LTD+SSDI', ssdionly: 'SSDI Only', ssi: 'SSI Only' };
+  const names = { baseline: 'Baseline (No Disability)', perm: 'Permanent: LTD + SSDI' };
 
   const datasets = [];
   keys.forEach(k => {
@@ -1565,7 +1550,7 @@ function renderDisabilityMC() {
   }
 
   // ── Ruin rate bar chart with color-coded risk and data labels ──
-  const ruinLabels = ['Baseline', 'STD→Recovery', 'Perm LTD+SSDI', 'SSDI Only', 'SSI Only'];
+  const ruinLabels = ['Baseline (No Disability)', 'Permanent: LTD + SSDI'];
   const ruinBarColors = ruinRates.map(r => ruinColor(r));
 
   const ruinDataLabelPlugin = {
@@ -1819,11 +1804,8 @@ function renderDisability() {
   makeChart('disability', 'chart-disability', 'line', {
     labels: ageLabels,
     datasets: [
-      { label: 'Baseline (No Disability)',       data: baseline,     borderColor: '#6ee7b7', borderWidth: 2.5, pointRadius: 0, fill: false },
-      { label: 'Temporary STD → Full Recovery',  data: stdScenario,  borderColor: '#60a5fa', borderWidth: 2,   pointRadius: 0, fill: false, borderDash: [6, 3] },
-      { label: 'Permanent: LTD + SSDI',          data: permScenario, borderColor: '#fbbf24', borderWidth: 2,   pointRadius: 0, fill: false, borderDash: [8, 4] },
-      { label: 'Permanent: SSDI Only (no LTD)',  data: ssdiOnly,     borderColor: '#f87171', borderWidth: 2,   pointRadius: 0, fill: false, borderDash: [4, 4] },
-      { label: 'Permanent: SSI Only',            data: ssiOnly,      borderColor: '#c084fc', borderWidth: 2,   pointRadius: 0, fill: false, borderDash: [3, 5] },
+      { label: 'Baseline (No Disability)', data: baseline,     borderColor: '#6ee7b7', borderWidth: 2.5, pointRadius: 0, fill: false },
+      { label: 'Permanent: LTD + SSDI',   data: permScenario, borderColor: '#fbbf24', borderWidth: 2.5, pointRadius: 0, fill: false, borderDash: [8, 4] },
     ]
   }, baseOpts());
 }
