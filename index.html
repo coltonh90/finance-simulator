@@ -2095,6 +2095,8 @@ function validatePin() {
     setTimeout(() => {
       ls.style.display = 'none';
       document.getElementById('app').style.display = 'block';
+      // Re-render now that canvases have real dimensions
+      renderDisability();
     }, 420);
   } else {
     // Wrong PIN: shake dots red, clear after delay
