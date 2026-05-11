@@ -805,7 +805,9 @@ function destroyChart(key) {
 
 function makeChart(key, canvasId, type, data, options, extraPlugins = []) {
   destroyChart(key);
-  const ctx = document.getElementById(canvasId).getContext('2d');
+  const el = document.getElementById(canvasId);
+  if (!el) return; // canvas removed (e.g. dashboard deleted) — skip silently
+  const ctx = el.getContext('2d');
   charts[key] = new Chart(ctx, { type, data, options, plugins: extraPlugins });
 }
 
@@ -968,7 +970,6 @@ function switchTab(name) {
 function runAll() {
   const p = getP_();
   simData = runSims(p);
-  renderOverview(p, simData);
   renderDisabilityBaseMC(p, simData);
   renderDisability();
 
