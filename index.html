@@ -240,8 +240,9 @@ hr { border: none; border-top: 1px solid #2a2d3a; margin: 16px 0; }
       <input type="number" id="retireAge" value="55" min="40" max="75" oninput="onInput()">
     </div>
     <div class="input-group">
-      <label>Annual Retirement Spend ($)</label>
-      <input type="number" id="annualSpend" value="0" placeholder="0 = auto (70% income)" oninput="onInput()">
+      <label style="justify-content:space-between;">Suggested Retirement Spend <span id="spend-pct" style="color:#6b7280;font-weight:400;"></span></label>
+      <div id="spend-display" style="background:#1a1d27; border:1px solid #2a2d3a; border-radius:7px; color:#6ee7b7; padding:7px 10px; font-size:14px; font-weight:700;">—</div>
+      <div style="font-size:10px; color:#4b5563; margin-top:5px; line-height:1.5;">Income minus monthly deposits = implied lifestyle cost. Drives FI number.</div>
     </div>
 
     <hr>
@@ -320,8 +321,8 @@ hr { border: none; border-top: 1px solid #2a2d3a; margin: 16px 0; }
         </div>
         <div class="card">
           <div class="val" id="ov-spend">—</div>
-          <div class="lbl">Suggested Spend</div>
-          <div class="sub">70% of current income, inflation-adjusted</div>
+          <div class="lbl">Suggested Retirement Spend</div>
+          <div class="sub" id="ov-spend-sub">Income minus investment deposits</div>
         </div>
         <div class="card">
           <div class="val" id="ov-progress">—</div>
@@ -674,10 +675,10 @@ function renderTierUI() {
 }
 
 function calcTierSpend(rate) {
-  // Estimate annual spend for this tier based on retirement portfolio (deterministic rough estimate)
+  // Estimate annual spend = income minus monthly deposits (implied lifestyle cost)
   const income = +document.getElementById('income').value || 94760;
-  const annualSpendRaw = +document.getElementById('annualSpend').value || 0;
-  const spend = annualSpendRaw > 0 ? annualSpendRaw : income * 0.70;
+  const annualSavings = getSavingsForAge(CURRENT_AGE, savingsPhases) || ((savingsPhases[0]?.monthlyAmount || 0) * 12);
+  const spend = Math.max(0, income - annualSavings);
   const firstRate = withdrawalTiers[0]?.rate / 100 || 0.04;
   const impliedPort = spend / firstRate;
   return impliedPort * rate / 100;
@@ -825,7 +826,6 @@ function getP_() {
   const income       = +document.getElementById('income').value       || 94760;
   const netWorth     = +document.getElementById('networth').value     || 170000;
   const retireAge    = +document.getElementById('retireAge').value    || 55;
-  const annualSpendRaw = +document.getElementById('annualSpend').value;
   const expReturn    = +document.getElementById('expReturn').value    / 100;
   const volatility   = +document.getElementById('volatility').value   / 100;
   const inflation    = +document.getElementById('inflation').value    / 100;
@@ -835,7 +835,7 @@ function getP_() {
   const annualSavings = getSavingsForAge(CURRENT_AGE, phases) || ((phases[0]?.monthlyAmount || 0) * 12);
   const savingsRate  = income > 0 ? annualSavings / income : 0;
 
-  const annualSpend  = annualSpendRaw > 0 ? annualSpendRaw : income * 0.70;
+  const annualSpend  = Math.max(0, income - annualSavings);   // implied lifestyle cost
   const firstRate    = tiers[0]?.rate / 100 || 0.04;
   const fiNumber     = annualSpend / firstRate;
 
@@ -921,6 +921,8 @@ function onInput() {
   document.getElementById('inf-val').textContent = (p.inflation * 100).toFixed(1) + '%';
   document.getElementById('hdr-nw').textContent  = fmt(p.netWorth);
   document.getElementById('hdr-inc').textContent = fmt(p.income);
+  document.getElementById('spend-display').textContent = fmt(p.annualSpend) + ' / yr';
+  document.getElementById('spend-pct').textContent = p.income > 0 ? Math.round(p.annualSpend / p.income * 100) + '% of income' : '';
   renderSavingsPhasesUI();
   renderTierUI();
   saveState();
@@ -976,6 +978,7 @@ function renderOverview(p, sim) {
   document.getElementById('ov-fi-year').textContent = fiAge ? (BIRTH_YEAR + fiAge).toString() : '2060+';
   document.getElementById('ov-fi-sub').textContent = fiAge ? `${fiAge - CURRENT_AGE} yrs away · to age ${p.lifeExp}` : 'Increase savings rate';
   document.getElementById('ov-spend').textContent = fmt(annualSpend);
+  document.getElementById('ov-spend-sub').textContent = `${fmt(p.annualSavings/12)}/mo deposits → ${fmt(annualSpend)}/yr lifestyle`;
   document.getElementById('ov-monthly-savings').textContent = fmt(Math.round(annualSavings / 12));
   document.getElementById('ov-annual-savings-sub').textContent = fmt(annualSavings) + ' / yr across all accounts';
 
@@ -1024,7 +1027,16 @@ function renderOverview(p, sim) {
   // Sensitivity chart: FI year at different annual savings amounts (shown as % of income)
   const srRates = [10, 15, 20, 25, 30, 40, 50];
   const fiYears = srRates.map(sr => {
-    const pp = { ...p, savingsPhases: [{ from: CURRENT_AGE, to: p.retireAge, monthlyAmount: Math.round(p.income * sr / 100 / 12) }] };
+    const overrideMonthly = Math.round(p.income * sr / 100 / 12);
+    const overrideAnnual  = overrideMonthly * 12;
+    const overrideSpend   = Math.max(0, p.income - overrideAnnual);
+    const pp = {
+      ...p,
+      savingsPhases: [{ from: CURRENT_AGE, to: p.retireAge, monthlyAmount: overrideMonthly }],
+      annualSavings: overrideAnnual,
+      annualSpend:   overrideSpend,
+      fiNumber:      overrideSpend / (p.firstRate || 0.04),
+    };
     const fa = estimateFiAge(pp);
     return fa ? BIRTH_YEAR + fa : 2075;
   });
@@ -1068,9 +1080,11 @@ function renderDisabilityBaseMC(p, sim) {
 // ─────────────────────────────────────────────────────────────
 // DISABILITY MONTE CARLO ENGINE
 // ─────────────────────────────────────────────────────────────
-function runDisabilityScenarioMC(scenario, disAge, stdMo, income, netWorth, expReturn, volatility, inflation, savingsPhases, stdBenefit, ltdBenefit, ssdiMonthly, ssiMonthly, stdStartMo, ltdElimMo, ssdiStartMo, ssiStartMo, ssdiOffsetsLtd, ptIncome, ptStartAge, ptEndAge, lifeExp, tiers) {
-  const RETIRE_AGE = 55;
-  const effectiveLtd = ssdiOffsetsLtd ? Math.max(0, ltdBenefit - ssdiMonthly) : ltdBenefit;
+function runDisabilityScenarioMC(scenario, disAge, stdMo, income, netWorth, expReturn, volatility, inflation, savingsPhases, stdBenefit, ltdBenefit, ssdiMonthly, ssiMonthly, stdStartMo, ltdElimMo, ssdiStartMo, ssiStartMo, ssdiOffsetsLtd, ptIncome, ptStartAge, ptEndAge, lifeExp, tiers, retireAge = 55) {
+  // For permanent disability scenarios, onset age IS the effective retirement age
+  const RETIRE_AGE     = retireAge;
+  const PERM_RETIRE    = Math.min(disAge, retireAge);  // disability overrules planned retirement
+  const effectiveLtd   = ssdiOffsetsLtd ? Math.max(0, ltdBenefit - ssdiMonthly) : ltdBenefit;
   const years = lifeExp - CURRENT_AGE;
   const trajectories = [];
   let ruinCount = 0;
@@ -1111,7 +1125,7 @@ function runDisabilityScenarioMC(scenario, disAge, stdMo, income, netWorth, expR
         }
 
       } else if (scenario === 'perm') {
-        // Permanent: LTD (with SSDI offset if checked) + SSDI + optional part-time
+        // Permanent: disability onset IS effective retirement — PERM_RETIRE = min(disAge, retireAge)
         if (age < disAge) {
           cashFlow = getSavingsForAge(age, savingsPhases);
         } else if (age < 65) {
@@ -1122,12 +1136,12 @@ function runDisabilityScenarioMC(scenario, disAge, stdMo, income, netWorth, expR
           const ptAnnual   = ptIncome > 0 && age >= ptStartAge && age <= ptEndAge ? ptIncome * 12 : 0;
           cashFlow = ltdAnnual + ssdiAnnual + ptAnnual - income * 0.62;
         } else {
-          const infl = Math.pow(1 + inflation, Math.max(0, age - RETIRE_AGE));
+          const infl = Math.pow(1 + inflation, Math.max(0, age - PERM_RETIRE));
           cashFlow = -income * 0.50 * infl + (age >= SS_AGE ? SS_ANNUAL : 0);
         }
 
       } else if (scenario === 'ssdionly') {
-        // SSDI only, no LTD, optional part-time
+        // SSDI only — disability onset IS effective retirement
         if (age < disAge) {
           cashFlow = getSavingsForAge(age, savingsPhases);
         } else if (age < 65) {
@@ -1136,12 +1150,12 @@ function runDisabilityScenarioMC(scenario, disAge, stdMo, income, netWorth, expR
           const ptAnnual   = ptIncome > 0 && age >= ptStartAge && age <= ptEndAge ? ptIncome * 12 : 0;
           cashFlow = ssdiAnnual + ptAnnual - income * 0.62;
         } else {
-          const infl = Math.pow(1 + inflation, Math.max(0, age - RETIRE_AGE));
+          const infl = Math.pow(1 + inflation, Math.max(0, age - PERM_RETIRE));
           cashFlow = -income * 0.50 * infl + (age >= SS_AGE ? SS_ANNUAL : 0);
         }
 
       } else if (scenario === 'ssi') {
-        // SSI only, optional part-time
+        // SSI only — disability onset IS effective retirement
         if (age < disAge) {
           cashFlow = getSavingsForAge(age, savingsPhases);
         } else if (age < 65) {
@@ -1150,7 +1164,7 @@ function runDisabilityScenarioMC(scenario, disAge, stdMo, income, netWorth, expR
           const ptAnnual   = ptIncome > 0 && age >= ptStartAge && age <= ptEndAge ? ptIncome * 12 : 0;
           cashFlow = ssiAnnual + ptAnnual - income * 0.62;
         } else {
-          const infl = Math.pow(1 + inflation, Math.max(0, age - RETIRE_AGE));
+          const infl = Math.pow(1 + inflation, Math.max(0, age - PERM_RETIRE));
           cashFlow = -income * 0.50 * infl + (age >= SS_AGE ? SS_ANNUAL : 0);
         }
       }
@@ -1199,7 +1213,7 @@ function renderDisabilityMC() {
   const lifeExp = getLifeExp();
   const tiers   = withdrawalTiers;
 
-  const args = [disAge, stdMo, income, netWorth, expReturn, volatility, inflation, savingsPhases, stdBenefit, ltdBenefit, ssdiMonthly, ssiMonthly, stdStartMo, ltdElimMo, ssdiStartMo, ssiStartMo, ssdiOffsetsLtd, ptIncome, ptStartAge, ptEndAge, lifeExp, tiers];
+  const args = [disAge, stdMo, income, netWorth, expReturn, volatility, inflation, savingsPhases, stdBenefit, ltdBenefit, ssdiMonthly, ssiMonthly, stdStartMo, ltdElimMo, ssdiStartMo, ssiStartMo, ssdiOffsetsLtd, ptIncome, ptStartAge, ptEndAge, lifeExp, tiers, retireAge];
   const keys  = ['baseline', 'std', 'perm', 'ssdionly', 'ssi'];
   const sims  = {};
   keys.forEach(k => { sims[k] = runDisabilityScenarioMC(k, ...args); });
@@ -1365,7 +1379,8 @@ function renderDisability() {
   const lifeExp = getLifeExp();
   const years = lifeExp - CURRENT_AGE + 1;
   const ageLabels = Array.from({ length: years }, (_, i) => CURRENT_AGE + i);
-  const RETIRE_AGE = retireAge;
+  const RETIRE_AGE  = retireAge;
+  const PERM_RETIRE = Math.min(disAge, retireAge);  // disability overrules planned retirement
 
   function buildTraj(scenarioFn) {
     let port = netWorth;
@@ -1429,7 +1444,7 @@ function renderDisability() {
   const permScenario = buildTraj(age => {
     if (age < disAge) return getSavingsForAge(age, savingsPhases);
     if (age <= 65) return disabilityAnnualIncome(age) - income * 0.62;
-    const infl = Math.pow(1 + inflation, Math.max(0, age - RETIRE_AGE));
+    const infl = Math.pow(1 + inflation, Math.max(0, age - PERM_RETIRE));
     return -income * 0.55 * infl + (age >= SS_AGE ? SS_ANNUAL : 0);
   });
 
@@ -1440,7 +1455,7 @@ function renderDisability() {
       const ptAnnual   = ptIncome > 0 && age >= ptStartAge && age <= ptEndAge ? ptIncome * 12 : 0;
       return ssdiAnnual + ptAnnual - income * 0.62;
     }
-    const infl = Math.pow(1 + inflation, Math.max(0, age - RETIRE_AGE));
+    const infl = Math.pow(1 + inflation, Math.max(0, age - PERM_RETIRE));
     return -income * 0.55 * infl + (age >= SS_AGE ? SS_ANNUAL : 0);
   });
 
@@ -1451,7 +1466,7 @@ function renderDisability() {
       const ptAnnual  = ptIncome > 0 && age >= ptStartAge && age <= ptEndAge ? ptIncome * 12 : 0;
       return ssiAnnual + ptAnnual - income * 0.62;
     }
-    const infl = Math.pow(1 + inflation, Math.max(0, age - RETIRE_AGE));
+    const infl = Math.pow(1 + inflation, Math.max(0, age - PERM_RETIRE));
     return -income * 0.55 * infl + (age >= SS_AGE ? SS_ANNUAL : 0);
   });
 
@@ -1628,7 +1643,7 @@ function renderStates(p) {
 const LS_KEY = 'finSim_v2';
 
 function saveState() {
-  const ids = ['income','networth','retireAge','annualSpend','expReturn','volatility','inflation','lifeExp',
+  const ids = ['income','networth','retireAge','expReturn','volatility','inflation','lifeExp',
                 'disAge','stdMonths','stdBenefit','stdStartMo','ltdBenefit','ltdElimMo',
                 'ssdiBenefit','ssdiStartMo','ssiBenefit','ssiStartMo','ptIncome','ptStartAge','ptEndAge'];
   const state = {};
@@ -1648,7 +1663,7 @@ function loadState() {
     const raw = localStorage.getItem(LS_KEY);
     if (!raw) return;
     const state = JSON.parse(raw);
-    const ids = ['income','networth','retireAge','annualSpend','expReturn','volatility','inflation','lifeExp',
+    const ids = ['income','networth','retireAge','expReturn','volatility','inflation','lifeExp',
                   'disAge','stdMonths','stdBenefit','stdStartMo','ltdBenefit','ltdElimMo',
                   'ssdiBenefit','ssdiStartMo','ssiBenefit','ssiStartMo','ptIncome','ptStartAge','ptEndAge'];
     ids.forEach(id => {
