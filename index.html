@@ -901,6 +901,8 @@ function switchTab(name) {
   const idx = ['disability', 'settings'].indexOf(name);
   document.querySelectorAll('.tab')[idx].classList.add('active');
   document.getElementById('panel-' + name).classList.add('active');
+  // Re-render disability charts now that the canvas is visible and has real dimensions
+  if (name === 'disability') renderDisability();
 }
 
 // ─────────────────────────────────────────────────────────────
