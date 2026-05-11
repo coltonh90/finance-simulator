@@ -231,8 +231,8 @@ hr { border: none; border-top: 1px solid #2a2d3a; margin: 16px 0; }
       <label>Current Net Worth ($)</label>
       <input type="number" id="networth" value="170000" oninput="onInput()">
     </div>
-    <div style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1.2px; color:#4b5563; margin-bottom:8px; margin-top:4px;">Annual Savings by Age Phase</div>
-    <div style="font-size:10px; color:#4b5563; margin-bottom:10px;">Set how much you save each year in each life phase.</div>
+    <div style="font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1.2px; color:#4b5563; margin-bottom:8px; margin-top:4px;">Investment Deposits / Month</div>
+    <div style="font-size:10px; color:#4b5563; margin-bottom:10px;">Monthly contributions across 401k, brokerage, IRA, HSA, or any investment account — by age phase.</div>
     <div id="phase-list"></div>
     <button onclick="addSavingsPhase()" style="width:100%; padding:7px; border-radius:6px; font-size:12px; font-weight:600; cursor:pointer; border:1px dashed #2a2d3a; background:transparent; color:#6b7280; margin-bottom:14px;" onmouseover="this.style.borderColor='#6ee7b7';this.style.color='#6ee7b7'" onmouseout="this.style.borderColor='#2a2d3a';this.style.color='#6b7280'">+ Add Phase</button>
     <div class="input-group">
@@ -329,9 +329,9 @@ hr { border: none; border-top: 1px solid #2a2d3a; margin: 16px 0; }
           <div class="sub">Net worth vs FI number</div>
         </div>
         <div class="card">
-          <div class="val" id="ov-annual-savings">—</div>
-          <div class="lbl">Annual Savings</div>
-          <div class="sub">At current savings rate</div>
+          <div class="val" id="ov-monthly-savings">—</div>
+          <div class="lbl">Monthly Deposits</div>
+          <div class="sub" id="ov-annual-savings-sub">— / yr across all accounts</div>
         </div>
       </div>
 
@@ -641,7 +641,7 @@ const charts = {};
 
 // ─── SAVINGS PHASES ─────────────────────────────────────────
 let savingsPhases = [
-  { from: 35, to: 55, annualAmount: 18952 }
+  { from: 35, to: 55, monthlyAmount: 1579 }
 ];
 
 // ─── WITHDRAWAL TIERS ───────────────────────────────────────
@@ -708,7 +708,7 @@ function removeWithdrawalTier(i) {
 
 function getSavingsForAge(age, phases) {
   const phase = phases.find(ph => age >= ph.from && age < ph.to);
-  return phase ? phase.annualAmount : 0;
+  return phase ? (phase.monthlyAmount || 0) * 12 : 0;
 }
 
 function renderSavingsPhasesUI() {
@@ -721,8 +721,8 @@ function renderSavingsPhasesUI() {
       <input type="number" value="${ph.from}" min="${CURRENT_AGE}" max="${retireAge}" oninput="updateSavingsPhase(${i},'from',this.value)">
       <span>–</span>
       <input type="number" value="${ph.to}" min="${CURRENT_AGE+1}" max="${retireAge}" oninput="updateSavingsPhase(${i},'to',this.value)">
-      <input type="number" class="phase-amt" value="${ph.annualAmount}" min="0" placeholder="$/yr" oninput="updateSavingsPhase(${i},'annualAmount',this.value)">
-      <span>/yr</span>
+      <input type="number" class="phase-amt" value="${ph.monthlyAmount || 0}" min="0" placeholder="$/mo" oninput="updateSavingsPhase(${i},'monthlyAmount',this.value)">
+      <span>/mo</span>
       ${savingsPhases.length > 1 ? `<button class="phase-remove" onclick="removeSavingsPhase(${i})">×</button>` : ''}
     </div>
   `).join('');
@@ -739,7 +739,7 @@ function addSavingsPhase() {
   const last = savingsPhases[savingsPhases.length - 1];
   const newFrom = last ? last.to : CURRENT_AGE;
   const newTo = Math.min(newFrom + 10, retireAge);
-  savingsPhases.push({ from: newFrom, to: newTo, annualAmount: last ? last.annualAmount : 18952 });
+  savingsPhases.push({ from: newFrom, to: newTo, monthlyAmount: last ? last.monthlyAmount : 1579 });
   renderSavingsPhasesUI();
   saveState();
 }
@@ -832,7 +832,7 @@ function getP_() {
   const lifeExp      = getLifeExp();
   const tiers        = withdrawalTiers;
   const phases       = savingsPhases;
-  const annualSavings = getSavingsForAge(CURRENT_AGE, phases) || (phases[0]?.annualAmount || 0);
+  const annualSavings = getSavingsForAge(CURRENT_AGE, phases) || ((phases[0]?.monthlyAmount || 0) * 12);
   const savingsRate  = income > 0 ? annualSavings / income : 0;
 
   const annualSpend  = annualSpendRaw > 0 ? annualSpendRaw : income * 0.70;
@@ -976,7 +976,8 @@ function renderOverview(p, sim) {
   document.getElementById('ov-fi-year').textContent = fiAge ? (BIRTH_YEAR + fiAge).toString() : '2060+';
   document.getElementById('ov-fi-sub').textContent = fiAge ? `${fiAge - CURRENT_AGE} yrs away · to age ${p.lifeExp}` : 'Increase savings rate';
   document.getElementById('ov-spend').textContent = fmt(annualSpend);
-  document.getElementById('ov-annual-savings').textContent = fmt(annualSavings);
+  document.getElementById('ov-monthly-savings').textContent = fmt(Math.round(annualSavings / 12));
+  document.getElementById('ov-annual-savings-sub').textContent = fmt(annualSavings) + ' / yr across all accounts';
 
   const srEl = document.getElementById('ov-success');
   srEl.textContent = pct(successRate);
@@ -1023,8 +1024,7 @@ function renderOverview(p, sim) {
   // Sensitivity chart: FI year at different annual savings amounts (shown as % of income)
   const srRates = [10, 15, 20, 25, 30, 40, 50];
   const fiYears = srRates.map(sr => {
-    const overrideAmt = p.income * sr / 100;
-    const pp = { ...p, savingsPhases: [{ from: CURRENT_AGE, to: p.retireAge, annualAmount: overrideAmt }] };
+    const pp = { ...p, savingsPhases: [{ from: CURRENT_AGE, to: p.retireAge, monthlyAmount: Math.round(p.income * sr / 100 / 12) }] };
     const fa = estimateFiAge(pp);
     return fa ? BIRTH_YEAR + fa : 2075;
   });
@@ -1513,7 +1513,7 @@ function renderStates(p) {
   const income = p ? p.income : (+document.getElementById('income').value || 94760);
   const netWorth = p ? p.netWorth : (+document.getElementById('networth').value || 170000);
   const expReturn = +document.getElementById('expReturn').value / 100;
-  const annualSavingsAmt = p ? p.annualSavings : (savingsPhases[0]?.annualAmount || 18952);
+  const annualSavingsAmt = p ? p.annualSavings : ((savingsPhases[0]?.monthlyAmount || 1579) * 12);
   const income2 = p ? p.income : (+document.getElementById('income').value || 94760);
   const savingsRate = income2 > 0 ? annualSavingsAmt / income2 : 0;
 
@@ -1658,7 +1658,12 @@ function loadState() {
     const offsetEl = document.getElementById('ssdiOffsetsLtd');
     if (offsetEl && state.ssdiOffsetsLtd !== undefined) offsetEl.checked = state.ssdiOffsetsLtd;
     if (Array.isArray(state.withdrawalTiers) && state.withdrawalTiers.length) withdrawalTiers = state.withdrawalTiers;
-    if (Array.isArray(state.savingsPhases)   && state.savingsPhases.length)   savingsPhases   = state.savingsPhases;
+    if (Array.isArray(state.savingsPhases) && state.savingsPhases.length) {
+      // migrate old annualAmount → monthlyAmount
+      savingsPhases = state.savingsPhases.map(ph =>
+        ph.monthlyAmount !== undefined ? ph : { ...ph, monthlyAmount: Math.round((ph.annualAmount || 0) / 12) }
+      );
+    }
   } catch(e) {}
 }
 
